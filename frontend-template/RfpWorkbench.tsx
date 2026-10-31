@@ -18,18 +18,22 @@ export interface Citation {
 export interface RfpItem {
   queryId: number;
   responseId: number;
+  requirementId: string; // Level 1 Traceability: REQ-FN-01
   rfpTitle: string;
   clientName: string;
   sectionName: string;
   question: string;
-  category: string;
-  requirementType: 'MANDATORY' | 'OPTIONAL' | 'INFO';
-  complianceStatus: 'COMPLIANT' | 'PARTIALLY_COMPLIANT' | 'NON_COMPLIANT' | 'CLARIFICATION';
+  category: string; // FUNCTIONAL, TECHNICAL, SECURITY, COMPLIANCE, INTEGRATION, COMMERCIAL
+  requirementType: 'MANDATORY' | 'OPTIONAL';
+  questionType: 'FACTUAL' | 'EXPLANATION' | 'EVIDENCE' | 'CONFIRMATION';
+  responseClassification: 'Fully Addressed' | 'Partially Addressed' | 'Information Required' | 'Not Supported';
+  unansweredExplanation?: string;
+  isDuplicate?: boolean;
   guardrailFlag: 'TECHNICAL' | 'LEGAL_REVIEW' | 'PRICING_DESK' | 'SLA_COMMITMENT';
   guardrailReason?: string;
   assignedOwner: 'SE_TECHNICAL' | 'LEGAL_COUNSEL' | 'COMMERCIAL_DESK';
   outdatedWarning?: string;
-  status: 'PENDING' | 'DRAFTED' | 'NEEDS_REVIEW' | 'APPROVED';
+  status: 'PENDING' | 'DRAFTED' | 'REVIEWED' | 'APPROVED';
   draftedAnswer?: string;
   confidenceScore: number;
   gapFlag: boolean;
@@ -59,78 +63,51 @@ export interface ClarificationItem {
   sectionName: string;
 }
 
-export interface ChatMessage {
-  id?: number;
-  sender: 'SE' | 'AGENT';
-  message: string;
-  actionType?: string;
-}
-
 export default function RfpWorkbench() {
   const [items, setItems] = useState<RfpItem[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'PROPOSAL' | 'MATRIX' | 'CLARIFICATIONS' | 'CHAT'>('PROPOSAL');
+  const [activeTab, setActiveTab] = useState<'WORKSPACE' | 'MATRIX' | 'CLARIFICATIONS'>('WORKSPACE');
   const [editedAnswer, setEditedAnswer] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // Chat State
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
-
-  // Matrix & Clarifications State
   const [matrixRows, setMatrixRows] = useState<ComplianceRow[]>([]);
   const [clarifications, setClarifications] = useState<ClarificationItem[]>([]);
   const [exportModal, setExportModal] = useState<string | null>(null);
 
-  const loadQueries = async () => {
+  const loadData = async () => {
     try {
-      const res = await fetch(`${API_BASE}/queries`);
-      if (res.ok) {
-        const data = await res.json();
+      const qRes = await fetch(`${API_BASE}/queries`);
+      if (qRes.ok) {
+        const data = await qRes.json();
         setItems(data);
         if (data.length > 0 && selectedId === null) {
           setSelectedId(data[0].queryId);
           setEditedAnswer(data[0].reviewedAnswer || data[0].draftedAnswer || '');
         }
       }
+      const mRes = await fetch(`${API_BASE}/compliance-matrix`);
+      if (mRes.ok) setMatrixRows(await mRes.json());
+
+      const cRes = await fetch(`${API_BASE}/clarifications`);
+      if (cRes.ok) setClarifications(await cRes.json());
     } catch (e) {
       console.error(e);
     }
   };
 
-  const loadMatrix = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/compliance-matrix`);
-      if (res.ok) setMatrixRows(await res.json());
-    } catch (e) {}
-  };
-
-  const loadClarifications = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/clarifications`);
-      if (res.ok) setClarifications(await res.json());
-    } catch (e) {}
-  };
-
   useEffect(() => {
-    loadQueries();
-    loadMatrix();
-    loadClarifications();
+    loadData();
   }, []);
 
   const selectedItem = items.find((i) => i.queryId === selectedId);
 
-  // Load Benchmark Demo RFP
+  // Ingest Level 1 Benchmark RFP
   const handleLoadSampleRfp = async () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/load-sample-rfp`, { method: 'POST' });
       if (res.ok) {
-        await loadQueries();
-        await loadMatrix();
-        await loadClarifications();
-        alert('✅ Loaded Qatar Islamic Bank (QIB) RFP with 5 Sections & Formatting Rules!');
+        await loadData();
+        alert('✅ Level 1 RFP Ingested with Requirement-Level Traceability!');
       }
     } catch (e) {
       console.error(e);
@@ -139,42 +116,7 @@ export default function RfpWorkbench() {
     }
   };
 
-  // SE Chat Message
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
-    const userText = chatInput;
-    setChatMessages((prev) => [...prev, { sender: 'SE', message: userText }]);
-    setChatInput('');
-    setChatLoading(true);
-
-    try {
-      const res = await fetch(`${API_BASE}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'se-session-01',
-          queryId: selectedId,
-          message: userText,
-          actionType: 'CHAT',
-        }),
-      });
-      if (res.ok) {
-        const reply = await res.json();
-        setChatMessages((prev) => [...prev, { sender: 'AGENT', message: reply.agentReply, actionType: reply.actionTaken }]);
-        if (reply.updatedDraft) {
-          setEditedAnswer(reply.updatedDraft);
-          loadQueries();
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setChatLoading(false);
-    }
-  };
-
-  // Approve Answer
+  // Review & Approve
   const handleApprove = async () => {
     if (!selectedItem || !selectedItem.responseId) return;
     try {
@@ -186,14 +128,14 @@ export default function RfpWorkbench() {
       if (res.ok) {
         const updated = await res.json();
         setItems((prev) => prev.map((item) => (item.queryId === updated.queryId ? updated : item)));
-        loadMatrix();
-        alert('✅ Proposal answer approved and locked for submission!');
+        loadData();
+        alert('✅ Requirement response approved and marked final!');
       }
     } catch (e) {}
   };
 
-  // Export Full Document
-  const handleExport = async () => {
+  // Export Word / Markdown
+  const handleExportWord = async () => {
     try {
       const res = await fetch(`${API_BASE}/export/all`);
       if (res.ok) {
@@ -203,47 +145,65 @@ export default function RfpWorkbench() {
     } catch (e) {}
   };
 
+  // Export Excel CSV
+  const handleExportExcel = () => {
+    window.open(`${API_BASE}/export/excel`, '_blank');
+  };
+
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100 font-sans">
-      {/* LEFT COLUMN: RFP Sections & Question Queue */}
+      {/* LEFT COLUMN: Extracted Requirements Queue */}
       <div className="w-1/3 border-r border-slate-800 flex flex-col bg-slate-900/40">
         <div className="p-4 border-b border-slate-800 bg-slate-900 flex justify-between items-center">
           <div>
             <h1 className="text-sm font-bold text-white flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Azentio Agent 2: Islamic Banking RFP Copilot
+              Level 1: RFP Intelligence Agent
             </h1>
-            <p className="text-[11px] text-slate-400">iMAL Suite • AAOIFI Compliant • 3 Grounded Sources</p>
+            <p className="text-[11px] text-slate-400">Automated Analysis & Requirement Traceability</p>
           </div>
-          <button
-            onClick={handleExport}
-            className="px-2.5 py-1 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 rounded text-white"
-          >
-            Export Proposal
-          </button>
+          <div className="flex gap-1.5">
+            <button
+              onClick={handleExportWord}
+              className="px-2 py-1 text-[11px] font-semibold bg-emerald-700 hover:bg-emerald-600 rounded text-white shadow"
+              title="Export consolidated draft to Word/Markdown"
+            >
+              Export Word
+            </button>
+            <button
+              onClick={handleExportExcel}
+              className="px-2 py-1 text-[11px] font-semibold bg-blue-700 hover:bg-blue-600 rounded text-white shadow"
+              title="Export consolidated draft to Excel Spreadsheet"
+            >
+              Export Excel
+            </button>
+          </div>
         </div>
 
-        {/* Demo Quick-Loader Banner */}
+        {/* Level 1 Benchmark Quick-Loader Banner */}
         <div className="p-3 bg-slate-800/40 border-b border-slate-800 flex justify-between items-center">
-          <span className="text-[11px] text-slate-300">Qatar Islamic Bank RFP 2026</span>
+          <div>
+            <span className="text-[11px] font-semibold text-slate-200 block">QIB Core Banking RFP 2026</span>
+            <span className="text-[10px] text-slate-400">PDF • 5 Sections • Functional, Tech, Security, Commercial</span>
+          </div>
           <button
             onClick={handleLoadSampleRfp}
             disabled={loading}
-            className="px-2 py-1 text-[11px] font-bold bg-blue-600 hover:bg-blue-500 rounded text-white shadow"
+            className="px-2.5 py-1 text-[11px] font-bold bg-blue-600 hover:bg-blue-500 rounded text-white shadow"
           >
-            {loading ? 'Ingesting...' : '⚡ Ingest Benchmark RFP'}
+            {loading ? 'Ingesting...' : '⚡ Ingest & Parse RFP'}
           </button>
         </div>
 
-        {/* Tabs for Left/Right switching */}
+        {/* View Tabs */}
         <div className="flex border-b border-slate-800 text-xs font-semibold bg-slate-900/60">
           <button
-            onClick={() => setActiveTab('PROPOSAL')}
+            onClick={() => setActiveTab('WORKSPACE')}
             className={`flex-1 py-2 text-center border-b-2 ${
-              activeTab === 'PROPOSAL' ? 'border-emerald-500 text-emerald-400 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white'
+              activeTab === 'WORKSPACE' ? 'border-emerald-500 text-emerald-400 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
-            Questions ({items.length})
+            Requirements ({items.length})
           </button>
           <button
             onClick={() => setActiveTab('MATRIX')}
@@ -263,7 +223,7 @@ export default function RfpWorkbench() {
           </button>
         </div>
 
-        {/* Questions Queue */}
+        {/* Requirements Queue */}
         <div className="flex-1 overflow-y-auto divide-y divide-slate-800/60">
           {items.map((item) => (
             <div
@@ -271,112 +231,97 @@ export default function RfpWorkbench() {
               onClick={() => {
                 setSelectedId(item.queryId);
                 setEditedAnswer(item.reviewedAnswer || item.draftedAnswer || '');
-                if (activeTab === 'MATRIX' || activeTab === 'CLARIFICATIONS') setActiveTab('PROPOSAL');
+                if (activeTab !== 'WORKSPACE') setActiveTab('WORKSPACE');
               }}
               className={`p-3.5 cursor-pointer transition ${
                 selectedId === item.queryId ? 'bg-slate-800/90 border-l-4 border-emerald-500' : 'hover:bg-slate-800/40'
               }`}
             >
               <div className="flex items-center justify-between text-[10px] mb-1">
-                <span className="font-semibold text-slate-400 truncate max-w-[180px]">
-                  {item.sectionName || 'General'}
+                <span className="font-mono font-bold text-blue-400">
+                  {item.requirementId || `REQ-${item.queryId}`}
                 </span>
-                <div className="flex items-center gap-1.5">
-                  {item.guardrailFlag && item.guardrailFlag !== 'TECHNICAL' && (
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-950 text-amber-400 border border-amber-800">
-                      {item.assignedOwner}
-                    </span>
-                  )}
-                  <span
-                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                      item.isApproved
-                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                        : item.gapFlag
-                        ? 'bg-rose-950 text-rose-400 border border-rose-800'
-                        : 'bg-blue-950 text-blue-400 border border-blue-800'
-                    }`}
-                  >
-                    {item.gapFlag ? 'CLARIFY' : item.status}
-                  </span>
-                </div>
+                <span
+                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                    item.responseClassification === 'Fully Addressed'
+                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                      : item.responseClassification === 'Partially Addressed'
+                      ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                      : 'bg-rose-950 text-rose-400 border border-rose-800'
+                  }`}
+                >
+                  {item.responseClassification || 'Pending'}
+                </span>
               </div>
               <p className="text-xs font-medium text-slate-200 line-clamp-2">{item.question}</p>
-              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-                <span className="text-[10px] text-slate-400 uppercase font-mono">{item.requirementType}</span>
-                <span className="font-mono text-emerald-400 font-bold">{item.confidenceScore}%</span>
+              <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+                <div className="flex gap-1.5">
+                  <span className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300 font-mono text-[9px]">{item.category}</span>
+                  <span className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 text-[9px]">{item.requirementType}</span>
+                </div>
+                <span className="font-mono text-emerald-400 font-bold text-[11px]">{item.confidenceScore}%</span>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* RIGHT COLUMN: Interactive Work Area */}
+      {/* RIGHT COLUMN: RFP Response Workspace */}
       <div className="flex-1 flex flex-col bg-slate-950">
-        {/* Sub-Header Tabs */}
-        <div className="border-b border-slate-800 px-6 py-2.5 bg-slate-900/40 flex justify-between items-center">
-          <div className="flex gap-4 text-xs">
-            <button
-              onClick={() => setActiveTab('PROPOSAL')}
-              className={`pb-1 font-semibold ${activeTab === 'PROPOSAL' ? 'text-white border-b-2 border-emerald-500' : 'text-slate-400'}`}
-            >
-              Proposal Drafting & Citations
-            </button>
-            <button
-              onClick={() => setActiveTab('CHAT')}
-              className={`pb-1 font-semibold ${activeTab === 'CHAT' ? 'text-white border-b-2 border-blue-500' : 'text-slate-400'}`}
-            >
-              SE Collaborative Chat Assistant
-            </button>
-            <button
-              onClick={() => setActiveTab('MATRIX')}
-              className={`pb-1 font-semibold ${activeTab === 'MATRIX' ? 'text-white border-b-2 border-emerald-500' : 'text-slate-400'}`}
-            >
-              Compliance Matrix View
-            </button>
-            <button
-              onClick={() => setActiveTab('CLARIFICATIONS')}
-              className={`pb-1 font-semibold ${activeTab === 'CLARIFICATIONS' ? 'text-white border-b-2 border-amber-500' : 'text-slate-400'}`}
-            >
-              Clarification Queries List
-            </button>
-          </div>
-          {selectedItem?.latencyMs && (
-            <span className="text-[11px] text-slate-500 font-mono">Response Latency: {selectedItem.latencyMs}ms</span>
-          )}
-        </div>
-
-        {/* TAB 1: PROPOSAL DRAFTING */}
-        {activeTab === 'PROPOSAL' && selectedItem && (
+        {activeTab === 'WORKSPACE' && selectedItem && (
           <div className="flex-1 overflow-y-auto p-6 space-y-5 max-w-4xl mx-auto w-full">
-            {/* Question Details */}
+            {/* Requirement Header */}
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-5">
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                <span>{selectedItem.sectionName} • Requirement: <strong>{selectedItem.requirementType}</strong></span>
-                <span className="text-emerald-400 font-bold font-mono text-sm">{selectedItem.confidenceScore}% Confidence</span>
-              </div>
-              <h2 className="text-sm font-semibold text-white mt-1">{selectedItem.question}</h2>
-
-              {/* Guardrail Warnings */}
-              {selectedItem.guardrailFlag && selectedItem.guardrailFlag !== 'TECHNICAL' && (
-                <div className="mt-3 p-3 rounded bg-amber-950/60 border border-amber-800 text-amber-200 text-xs">
-                  <span className="font-bold">⚠️ Guardrail Active: </span>
-                  {selectedItem.guardrailReason}
-                  <div className="mt-1 font-semibold text-amber-300">Action: Routed to {selectedItem.assignedOwner}</div>
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 font-mono font-bold text-xs">
+                    {selectedItem.requirementId || `REQ-${selectedItem.queryId}`}
+                  </span>
+                  <span>{selectedItem.sectionName}</span>
                 </div>
-              )}
+                <span className="font-mono text-emerald-400 font-bold text-sm">
+                  {selectedItem.confidenceScore}% Confidence
+                </span>
+              </div>
+              <h2 className="text-sm font-semibold text-white mt-2 leading-relaxed">{selectedItem.question}</h2>
 
-              {selectedItem.outdatedWarning && (
-                <div className="mt-2 p-3 rounded bg-orange-950/60 border border-orange-800 text-orange-200 text-xs">
-                  {selectedItem.outdatedWarning}
+              {/* Classification & Metadata Badges */}
+              <div className="mt-4 pt-3 border-t border-slate-800 flex flex-wrap gap-2 text-[11px]">
+                <span className="px-2 py-1 rounded bg-slate-800 text-slate-300">
+                  Domain: <strong>{selectedItem.category}</strong>
+                </span>
+                <span className="px-2 py-1 rounded bg-slate-800 text-slate-300">
+                  Instruction: <strong>{selectedItem.requirementType}</strong>
+                </span>
+                <span className="px-2 py-1 rounded bg-slate-800 text-slate-300">
+                  Question Type: <strong>{selectedItem.questionType}</strong>
+                </span>
+                <span
+                  className={`px-2 py-1 rounded font-bold ${
+                    selectedItem.responseClassification === 'Fully Addressed'
+                      ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                      : selectedItem.responseClassification === 'Partially Addressed'
+                      ? 'bg-amber-950 text-amber-300 border border-amber-800'
+                      : 'bg-rose-950 text-rose-300 border border-rose-800'
+                  }`}
+                >
+                  Status: {selectedItem.responseClassification}
+                </span>
+              </div>
+
+              {/* Missing Information / Guardrail Explanation */}
+              {selectedItem.unansweredExplanation && (
+                <div className="mt-3 p-3 rounded bg-amber-950/60 border border-amber-800 text-amber-200 text-xs">
+                  <strong>⚠️ Requirement Analysis Note:</strong> {selectedItem.unansweredExplanation}
                 </div>
               )}
             </div>
 
-            {/* Answer Editor */}
+            {/* AI Generated & Editable Answer */}
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-5">
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Grounded Islamic Banking Answer
+                  Generated Proposal Response
                 </h3>
                 {selectedItem.isApproved && (
                   <span className="text-xs text-emerald-400 bg-emerald-950 border border-emerald-800 px-2.5 py-0.5 rounded font-semibold">
@@ -391,25 +336,22 @@ export default function RfpWorkbench() {
                 className="w-full text-xs leading-relaxed p-3 rounded bg-slate-950 border border-slate-800 text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
               <div className="mt-4 flex justify-between items-center">
-                <button
-                  onClick={() => setActiveTab('CHAT')}
-                  className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 font-semibold"
-                >
-                  💬 Ask Agent to Rewrite or Shorten in Chat &rarr;
-                </button>
+                <span className="text-[11px] text-slate-500">
+                  Human-in-the-loop: Review, edit, and approve before final proposal compilation.
+                </span>
                 <button
                   onClick={handleApprove}
                   className="px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-md transition shadow"
                 >
-                  ✓ Approve & Lock Answer
+                  ✓ Approve & Mark Final
                 </button>
               </div>
             </div>
 
-            {/* Source Citations */}
+            {/* Evidential Grounded Sources */}
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-5">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-                Grounded Knowledge Sources ({selectedItem.citations?.length || 0})
+                Supporting Organizational Knowledge ({selectedItem.citations?.length || 0})
               </h3>
               <div className="space-y-3">
                 {selectedItem.citations?.map((cit) => (
@@ -428,87 +370,44 @@ export default function RfpWorkbench() {
           </div>
         )}
 
-        {/* TAB 2: SE CHAT ASSISTANT */}
-        {activeTab === 'CHAT' && (
-          <div className="flex-1 flex flex-col p-6 max-w-4xl mx-auto w-full">
-            <div className="bg-slate-900 border border-slate-800 rounded-t-lg p-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <span>🤖</span> SE Collaborative Assistant
-              </h3>
-              <p className="text-xs text-slate-400">
-                Direct the agent to rewrite answers, emphasize AAOIFI Shariah governance, verify formatting, or clarify legal guardrails.
-              </p>
-            </div>
-            <div className="flex-1 overflow-y-auto bg-slate-900/50 border-x border-slate-800 p-4 space-y-3">
-              {chatMessages.length === 0 && (
-                <div className="text-center text-slate-500 text-xs py-8">
-                  Try asking: <br />
-                  <span className="text-slate-400 font-mono">"Rewrite this answer to emphasize AAOIFI compliance"</span> or <br />
-                  <span className="text-slate-400 font-mono">"Shorten the answer to comply with the 200-word limit"</span> or <br />
-                  <span className="text-slate-400 font-mono">"Approve this answer"</span>
-                </div>
-              )}
-              {chatMessages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.sender === 'SE' ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={`max-w-xl text-xs p-3 rounded-lg leading-relaxed ${
-                      msg.sender === 'SE' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-100 border border-slate-700'
-                    }`}
-                  >
-                    <div className="text-[10px] font-bold opacity-75 mb-1">{msg.sender === 'SE' ? 'Sales Engineer' : 'RFP Agent'}</div>
-                    <div className="whitespace-pre-wrap">{msg.message}</div>
-                  </div>
-                </div>
-              ))}
-              {chatLoading && <div className="text-xs text-slate-400 italic">Agent is analyzing and rewriting...</div>}
-            </div>
-            <form onSubmit={handleSendMessage} className="p-3 bg-slate-900 border border-slate-800 rounded-b-lg flex gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Give instructions (e.g. 'Rewrite with focus on Murabaha asset ownership')..."
-                className="flex-1 text-xs p-2.5 rounded bg-slate-950 border border-slate-700 text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-              <button type="submit" disabled={chatLoading} className="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded">
-                Send
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* TAB 3: COMPLIANCE MATRIX VIEW */}
+        {/* TAB 2: COMPLIANCE MATRIX VIEW */}
         {activeTab === 'MATRIX' && (
           <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full">
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h2 className="text-base font-bold text-white">Full RFP Compliance Matrix</h2>
-                <p className="text-xs text-slate-400">Formal compliance disposition table for submission</p>
+                <h2 className="text-base font-bold text-white">Consolidated Compliance Matrix</h2>
+                <p className="text-xs text-slate-400">Requirement-level traceability and response status</p>
               </div>
+              <button
+                onClick={handleExportExcel}
+                className="px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded shadow"
+              >
+                📥 Download Excel (.csv)
+              </button>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-800 text-slate-300 text-[11px] uppercase tracking-wider">
                   <tr>
-                    <th className="p-3">Clause</th>
+                    <th className="p-3">Clause ID</th>
                     <th className="p-3">Requirement</th>
                     <th className="p-3">Type</th>
-                    <th className="p-3">Compliance</th>
+                    <th className="p-3">Classification</th>
                     <th className="p-3">Owner</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
                   {matrixRows.map((row) => (
                     <tr key={row.queryId} className="hover:bg-slate-800/40">
-                      <td className="p-3 font-mono text-slate-400 font-bold">{row.clauseNumber}</td>
+                      <td className="p-3 font-mono text-blue-400 font-bold">{row.clauseNumber}</td>
                       <td className="p-3 font-medium text-slate-200 max-w-xs">{row.requirementText}</td>
                       <td className="p-3 text-[11px] font-mono">{row.requirementType}</td>
                       <td className="p-3">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            row.complianceStatus === 'COMPLIANT'
+                            row.complianceStatus === 'Fully Addressed' || row.complianceStatus === 'COMPLIANT'
                               ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                              : row.complianceStatus === 'PARTIALLY_COMPLIANT'
+                              : row.complianceStatus === 'Partially Addressed' || row.complianceStatus === 'PARTIALLY_COMPLIANT'
                               ? 'bg-amber-950 text-amber-400 border border-amber-800'
                               : 'bg-rose-950 text-rose-400 border border-rose-800'
                           }`}
@@ -525,44 +424,40 @@ export default function RfpWorkbench() {
           </div>
         )}
 
-        {/* TAB 4: CLARIFICATION QUERIES LIST */}
+        {/* TAB 3: CLARIFICATIONS TAB */}
         {activeTab === 'CLARIFICATIONS' && (
           <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full">
             <div className="mb-4">
-              <h2 className="text-base font-bold text-white">Consolidated Customer Clarification Queries</h2>
-              <p className="text-xs text-slate-400">Formal questions to submit to the customer rather than making assumptions.</p>
+              <h2 className="text-base font-bold text-white">Clarification Queries List (Information Required)</h2>
+              <p className="text-xs text-slate-400">Formal queries generated for client clarification instead of inventing assumptions.</p>
             </div>
             <div className="space-y-3">
-              {clarifications.length === 0 ? (
-                <div className="text-center text-slate-500 text-xs py-8">No open customer clarifications. All requirements answered confidently!</div>
-              ) : (
-                clarifications.map((c) => (
-                  <div key={c.id} className="p-4 bg-slate-900 border border-slate-800 rounded-lg text-xs space-y-2">
-                    <div className="flex justify-between items-center text-slate-400 text-[11px]">
-                      <span>Section: {c.sectionName}</span>
-                      <span className="text-amber-400 font-bold">Query #{c.id}</span>
-                    </div>
-                    <h4 className="font-semibold text-white">Client Question: "{c.questionText}"</h4>
-                    <div className="p-2.5 bg-slate-950 rounded border border-slate-800 text-amber-200">
-                      <strong>Clarification Requested:</strong> {c.clarificationNeeded}
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      <strong>Reason Needed:</strong> {c.reasonJustification}
-                    </div>
+              {clarifications.map((c) => (
+                <div key={c.id} className="p-4 bg-slate-900 border border-slate-800 rounded-lg text-xs space-y-2">
+                  <div className="flex justify-between items-center text-slate-400 text-[11px]">
+                    <span>Section: {c.sectionName}</span>
+                    <span className="text-amber-400 font-bold">Clarification #{c.id}</span>
                   </div>
-                ))
-              )}
+                  <h4 className="font-semibold text-white">Client Requirement: "{c.questionText}"</h4>
+                  <div className="p-2.5 bg-slate-950 rounded border border-slate-800 text-amber-200">
+                    <strong>Information Required:</strong> {c.clarificationNeeded}
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    <strong>Reason Needed:</strong> {c.reasonJustification}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* Export Modal */}
+      {/* Export Word Modal */}
       {exportModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-6 z-50">
           <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-3xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-white">Formatted Islamic Banking Proposal Export</h3>
+              <h3 className="text-sm font-bold text-white">Consolidated Draft Proposal (Word / Markdown)</h3>
               <button onClick={() => setExportModal(null)} className="text-slate-400 hover:text-white text-sm">✕</button>
             </div>
             <pre className="flex-1 overflow-y-auto bg-slate-950 p-4 rounded text-[11px] font-mono text-slate-300 border border-slate-800 whitespace-pre-wrap">

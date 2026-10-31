@@ -29,6 +29,13 @@ public class RfpResponse {
     @Column(name = "confidence_score", nullable = false)
     private Integer confidenceScore;
 
+    @Column(name = "response_classification", length = 30)
+    @Builder.Default
+    private String responseClassification = "Fully Addressed"; // Fully Addressed, Partially Addressed, Information Required, Not Supported
+
+    @Column(name = "unanswered_explanation", columnDefinition = "TEXT")
+    private String unansweredExplanation; // Explains why requirement cannot be answered completely
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "source_citations", columnDefinition = "jsonb")
     private String sourceCitations; // JSONB storage with source_type & version
@@ -38,10 +45,10 @@ public class RfpResponse {
     private Boolean gapFlag = false;
 
     @Column(name = "guardrail_reason", columnDefinition = "TEXT")
-    private String guardrailReason; // Triggered if Legal or Pricing terms detected
+    private String guardrailReason;
 
     @Column(name = "outdated_warning", columnDefinition = "TEXT")
-    private String outdatedWarning; // Warning if source version is obsolete
+    private String outdatedWarning;
 
     @Column(name = "reviewed_answer", columnDefinition = "TEXT")
     private String reviewedAnswer;

@@ -19,6 +19,9 @@ public class RfpQuery {
     @Column(name = "document_id")
     private Long documentId;
 
+    @Column(name = "requirement_id", length = 50)
+    private String requirementId; // e.g. REQ-FN-01, REQ-SEC-02
+
     @Column(name = "rfp_title", nullable = false, length = 100)
     private String rfpTitle;
 
@@ -33,15 +36,26 @@ public class RfpQuery {
     private String questionText;
 
     @Column(length = 50)
-    private String category;
+    private String category; // FUNCTIONAL, TECHNICAL, SECURITY, COMPLIANCE, INTEGRATION, COMMERCIAL
 
     @Column(name = "requirement_type", length = 20)
     @Builder.Default
-    private String requirementType = "MANDATORY"; // MANDATORY, OPTIONAL, INFO
+    private String requirementType = "MANDATORY"; // MANDATORY, OPTIONAL
 
-    @Column(name = "compliance_status", length = 20)
+    @Column(name = "question_type", length = 30)
     @Builder.Default
-    private String complianceStatus = "COMPLIANT"; // COMPLIANT, PARTIALLY_COMPLIANT, NON_COMPLIANT, CLARIFICATION
+    private String questionType = "EXPLANATION"; // FACTUAL, EXPLANATION, EVIDENCE, CONFIRMATION
+
+    @Column(name = "compliance_status", length = 30)
+    @Builder.Default
+    private String complianceStatus = "Fully Addressed"; // Fully Addressed, Partially Addressed, Information Required, Not Supported
+
+    @Column(name = "is_duplicate")
+    @Builder.Default
+    private Boolean isDuplicate = false;
+
+    @Column(name = "duplicate_of_id")
+    private Long duplicateOfId;
 
     @Column(name = "guardrail_flag", length = 50)
     @Builder.Default

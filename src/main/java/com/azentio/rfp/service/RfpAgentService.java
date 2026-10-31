@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -59,7 +60,7 @@ public class RfpAgentService {
                         .temperature(0.2)
                         .build();
                 this.useRealLlm = true;
-                log.info("Initialized LangChain4j Chat Model for Islamic Banking: {}", chatModelName);
+                log.info("Initialized LangChain4j Chat Model for Level 1 RFP: {}", chatModelName);
             } catch (Exception e) {
                 this.useRealLlm = false;
             }
@@ -67,38 +68,56 @@ public class RfpAgentService {
     }
 
     /**
-     * Core Triage & Grounded Generation for Challenge B:
-     * 1. Evaluates Commercial & Legal Guardrails.
-     * 2. Retrieves from 3 knowledge sources (Product Docs, SOWs, Past RFPs).
-     * 3. Confirms Shariah alignment (AAOIFI standards).
-     * 4. Enforces Redaction on client details.
-     * 5. Checks Source Quality (outdated version warnings).
-     * 6. Routes low-confidence questions to Customer Clarification List.
+     * Level 1 Core Pipeline:
+     * 1. RFP document ingestion & Requirement ID traceability.
+     * 2. Intelligent classification (Domain, Mandatory/Optional, Question Type, Duplicate detection).
+     * 3. Enterprise Knowledge Retrieval (3 Sources: Product Docs, SOWs, Past RFPs).
+     * 4. AI-Powered Grounded Answering.
+     * 5. Response Classification (Fully Addressed, Partially Addressed, Information Required, Not Supported).
      */
     @Transactional
     public RfpQueryResponseDTO processRfpQuery(RfpQueryRequest request) {
         long startTime = System.currentTimeMillis();
 
-        // 1. Guardrail Evaluation: Commercial & Legal content triage
+        // 1. Requirement ID Generation (if not supplied)
+        String reqId = request.getRequirementId();
+        if (reqId == null || reqId.isBlank()) {
+            String prefix = getCategoryPrefix(request.getCategory());
+            long count = queryRepository.count() + 1;
+            reqId = String.format("REQ-%s-%02d", prefix, count);
+        }
+
+        // 2. Intelligent Classification: Question Type
+        String questionType = determineQuestionType(request.getQuestion());
+
+        // 3. Duplicate / Overlap Detection
+        Long duplicateOfId = checkDuplicateRequirement(request.getQuestion());
+        boolean isDuplicate = (duplicateOfId != null);
+
+        // 4. Commercial & Legal Guardrail Evaluation
         RfpGuardrailService.GuardrailResult guardrail = guardrailService.evaluateGuardrails(request.getQuestion());
 
-        // 2. Persist Query with section and requirement metadata
+        // 5. Persist Query
         RfpQuery query = RfpQuery.builder()
+                .requirementId(reqId)
                 .rfpTitle(request.getRfpTitle())
                 .clientName(request.getClientName())
                 .sectionName(request.getSectionName() != null ? request.getSectionName() : "General Requirements")
                 .questionText(request.getQuestion())
-                .category(request.getCategory())
+                .category(request.getCategory() != null ? request.getCategory() : "FUNCTIONAL")
                 .requirementType(request.getRequirementType() != null ? request.getRequirementType() : "MANDATORY")
+                .questionType(questionType)
+                .isDuplicate(isDuplicate)
+                .duplicateOfId(duplicateOfId)
                 .guardrailFlag(guardrail.guardrailFlag())
                 .assignedOwner(guardrail.assignedOwner())
                 .status("PENDING")
                 .build();
         query = queryRepository.save(query);
 
-        // If Commercial/Legal Guardrail is triggered: Do not auto-generate pricing or commitments!
+        // Commercial / Legal Guardrail Triage
         if (guardrail.isTriggered()) {
-            query.setComplianceStatus("PARTIALLY_COMPLIANT");
+            query.setComplianceStatus("Partially Addressed");
             query.setStatus("NEEDS_REVIEW");
             queryRepository.save(query);
 
@@ -106,6 +125,8 @@ public class RfpAgentService {
                     .queryId(query.getId())
                     .draftedAnswer(guardrail.reasonExplanation())
                     .confidenceScore(100)
+                    .responseClassification("Partially Addressed")
+                    .unansweredExplanation("Commercial, legal, or SLA liability terms require direct authorization from the " + guardrail.assignedOwner() + ".")
                     .sourceCitations("[]")
                     .gapFlag(false)
                     .guardrailReason(guardrail.reasonExplanation())
@@ -118,10 +139,10 @@ public class RfpAgentService {
             return mapToDTO(query, response, Collections.emptyList(), (int) (System.currentTimeMillis() - startTime), "Azentio-Guardrail-Engine");
         }
 
-        // 3. PgVector Semantic Retrieval across 3 Knowledge Sources
+        // 6. Enterprise Knowledge Semantic Retrieval (3 Sources)
         List<HistoricalMatchDTO> matches = retrievalService.retrieveTopMatches(request.getQuestion(), 3);
 
-        // Sanitize any confidential client names in citations
+        // Sanitize client confidentiality in citations
         for (HistoricalMatchDTO m : matches) {
             m.setApprovedAnswer(guardrailService.sanitizeConfidentialDetails(m.getApprovedAnswer()));
         }
@@ -129,7 +150,7 @@ public class RfpAgentService {
         // Check for outdated source versions
         String outdatedWarning = guardrailService.evaluateSourceQuality(matches);
 
-        // 4. Confidence & Gap Triage
+        // 7. Calculate Confidence & Response Classification (Level 1 Categories)
         int topScore = 0;
         if (!matches.isEmpty() && matches.get(0).getSimilarityPercentage() != null) {
             topScore = matches.get(0).getSimilarityPercentage();
@@ -138,37 +159,45 @@ public class RfpAgentService {
         boolean isGap = topScore < 50 || matches.isEmpty();
         String draftedAnswer;
         String status;
-        String complianceStatus;
+        String responseClassification;
+        String unansweredExplanation = null;
 
         if (isGap) {
             status = "NEEDS_REVIEW";
-            complianceStatus = "CLARIFICATION";
-            draftedAnswer = "⚠️ GAP DETECTED: No verified Islamic banking documentation answers this requirement with sufficient confidence ("
-                    + topScore + "%). This item has been added to the Customer Clarification Queries List.";
+            responseClassification = "Information Required";
+            unansweredExplanation = "No approved organizational knowledge answers this specific requirement with >= 50% confidence (Score: " + topScore + "%). Customer parameter clarification is required.";
+            draftedAnswer = "⚠️ INFORMATION REQUIRED: Supporting organisational knowledge is insufficient to answer this requirement with high confidence ("
+                    + topScore + "%). This item has been added to the Clarification Queries list for the customer.";
 
-            // Add to Customer Clarification Queries List
             clarificationService.registerClarificationQuery(query.getId(), query.getQuestionText(), query.getSectionName());
+        } else if (topScore >= 80) {
+            status = "DRAFTED";
+            responseClassification = "Fully Addressed";
+            draftedAnswer = generateGroundedAnswer(request.getClientName(), request.getQuestion(), matches);
         } else {
             status = "DRAFTED";
-            complianceStatus = topScore >= 75 ? "COMPLIANT" : "PARTIALLY_COMPLIANT";
-            draftedAnswer = generateGroundedIslamicAnswer(request.getClientName(), request.getQuestion(), matches);
+            responseClassification = "Partially Addressed";
+            unansweredExplanation = "Organizational documentation partially matches this requirement (" + topScore + "% similarity). Sales Engineer review recommended.";
+            draftedAnswer = generateGroundedAnswer(request.getClientName(), request.getQuestion(), matches);
         }
 
-        query.setComplianceStatus(complianceStatus);
+        query.setComplianceStatus(responseClassification);
         query.setStatus(status);
         queryRepository.save(query);
 
-        // 5. Serialize Citations
+        // 8. Serialize Citations
         String citationsJson = "[]";
         try {
             citationsJson = objectMapper.writeValueAsString(matches);
         } catch (Exception ignored) {}
 
-        // 6. Persist Response
+        // 9. Persist Response
         RfpResponse response = RfpResponse.builder()
                 .queryId(query.getId())
                 .draftedAnswer(draftedAnswer)
                 .confidenceScore(topScore)
+                .responseClassification(responseClassification)
+                .unansweredExplanation(unansweredExplanation)
                 .sourceCitations(citationsJson)
                 .gapFlag(isGap)
                 .outdatedWarning(outdatedWarning)
@@ -178,11 +207,11 @@ public class RfpAgentService {
                 .build();
         response = responseRepository.save(response);
 
-        // 7. Audit Log
+        // 10. Audit Logging
         int latency = (int) (System.currentTimeMillis() - startTime);
         RfpAuditLog auditLog = RfpAuditLog.builder()
                 .queryId(query.getId())
-                .modelUsed(useRealLlm ? chatModelName : "Azentio-iMAL-Islamic-Synthesizer")
+                .modelUsed(useRealLlm ? chatModelName : "Azentio-Grounded-Synthesizer-v1")
                 .promptTokens(180)
                 .completionTokens(120)
                 .latencyMs(latency)
@@ -204,11 +233,12 @@ public class RfpAgentService {
         if (request.getReviewedAnswer() != null && !request.getReviewedAnswer().isBlank()) {
             response.setReviewedAnswer(request.getReviewedAnswer());
         }
+        response.setResponseClassification("Fully Addressed");
         response.setUpdatedAt(LocalDateTime.now());
         responseRepository.save(response);
 
         query.setStatus("APPROVED");
-        query.setComplianceStatus("COMPLIANT");
+        query.setComplianceStatus("Fully Addressed");
         queryRepository.save(query);
 
         if (request.isSaveToKnowledgeBase()) {
@@ -219,7 +249,7 @@ public class RfpAgentService {
                     .question(query.getQuestionText())
                     .approvedAnswer(response.getReviewedAnswer())
                     .sourceDocument("Approved_" + query.getClientName().replaceAll("\\s+", "_") + "_2026.pdf")
-                    .sectionReference("SE-Verified")
+                    .sectionReference(query.getRequirementId() != null ? query.getRequirementId() : "SE-Verified")
                     .build();
             learned = knowledgeBaseRepository.save(learned);
 
@@ -228,11 +258,11 @@ public class RfpAgentService {
         }
 
         List<HistoricalMatchDTO> citations = parseCitations(response.getSourceCitations());
-        return mapToDTO(query, response, citations, 0, "Approved-Human-In-Control");
+        return mapToDTO(query, response, citations, 0, "Approved-SE-Control");
     }
 
     public List<RfpQueryResponseDTO> getAllQueriesWithResponses() {
-        List<RfpQuery> queries = queryRepository.findAllByOrderByIdDesc();
+        List<RfpQuery> queries = queryRepository.findAllByOrderByIdAsc();
         List<RfpQueryResponseDTO> results = new ArrayList<>();
 
         for (RfpQuery q : queries) {
@@ -243,30 +273,66 @@ public class RfpAgentService {
         return results;
     }
 
-    private String generateGroundedIslamicAnswer(String clientName, String question, List<HistoricalMatchDTO> sources) {
+    private Long checkDuplicateRequirement(String question) {
+        if (question == null) return null;
+        List<RfpQuery> existing = queryRepository.findAll();
+        for (RfpQuery eq : existing) {
+            if (eq.getQuestionText().equalsIgnoreCase(question.trim())) {
+                return eq.getId();
+            }
+        }
+        return null;
+    }
+
+    private String determineQuestionType(String text) {
+        if (text == null) return "EXPLANATION";
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("does") || lower.startsWith("do you") || lower.startsWith("is the") || lower.startsWith("can the") || lower.startsWith("has the")) {
+            return "CONFIRMATION";
+        }
+        if (lower.contains("soc") || lower.contains("iso") || lower.contains("audit") || lower.contains("certif") || lower.contains("sla") || lower.contains("benchmark") || lower.contains("evidence")) {
+            return "EVIDENCE";
+        }
+        if (lower.startsWith("what is") || lower.startsWith("what are") || lower.contains("version") || lower.contains("encryption standard") || lower.contains("port") || lower.contains("database supported")) {
+            return "FACTUAL";
+        }
+        return "EXPLANATION";
+    }
+
+    private String getCategoryPrefix(String category) {
+        if (category == null) return "REQ";
+        return switch (category.toUpperCase()) {
+            case "SECURITY" -> "SEC";
+            case "COMPLIANCE", "SHARIAH_COMPLIANCE" -> "CMP";
+            case "TECHNICAL", "ARCHITECTURE" -> "TECH";
+            case "INTEGRATION" -> "INT";
+            case "COMMERCIAL", "PRICING" -> "COM";
+            default -> "FN";
+        };
+    }
+
+    private String generateGroundedAnswer(String clientName, String question, List<HistoricalMatchDTO> sources) {
         if (useRealLlm && chatLanguageModel != null) {
             try {
                 StringBuilder prompt = new StringBuilder();
-                prompt.append("You are Azentio's Lead Islamic Banking Sales Engineer specializing in the iMAL suite.\n");
-                prompt.append("Strict rule: Synthesize a compliant proposal response grounded strictly in the 3 approved knowledge sources below.\n");
-                prompt.append("Ensure full respect for AAOIFI Shariah standards, Murabaha sequence, and Islamic lending terminology.\n\n");
-                prompt.append("Target Bank: ").append(clientName).append("\n");
-                prompt.append("Question: ").append(question).append("\n\n");
-                prompt.append("Approved Knowledge Sources:\n");
+                prompt.append("You are Azentio's Senior Sales Engineer answering an enterprise RFP requirement.\n");
+                prompt.append("Strict rule: Generate an evidence-backed answer grounded strictly in the 3 approved knowledge sources below.\n\n");
+                prompt.append("Target Client: ").append(clientName).append("\n");
+                prompt.append("Requirement: ").append(question).append("\n\n");
+                prompt.append("Approved Organizational Knowledge Sources:\n");
                 for (HistoricalMatchDTO s : sources) {
-                    prompt.append("- [Source Type: ").append(s.getSourceType()).append(" | Document: ").append(s.getSourceDocument())
-                            .append(", ").append(s.getSectionReference()).append("]: ").append(s.getApprovedAnswer()).append("\n");
+                    prompt.append("- [Source: ").append(s.getSourceType()).append(" | Doc: ").append(s.getSourceDocument())
+                            .append(", Ref: ").append(s.getSectionReference()).append("]: ").append(s.getApprovedAnswer()).append("\n");
                 }
-                prompt.append("\nGenerate an authoritative, client-ready enterprise proposal answer for ").append(clientName).append(":");
+                prompt.append("\nGenerate an authoritative, customer-adapted proposal response:");
                 return chatLanguageModel.generate(prompt.toString());
             } catch (Exception ignored) {}
         }
 
-        // High quality grounded fallback
         HistoricalMatchDTO top = sources.get(0);
         return String.format(
-                "Regarding %s's requirement on \"%s\":\n\n%s\n\n" +
-                "Compliance & Grounding: This response complies with Azentio iMAL Islamic Banking architecture and AAOIFI Shariah guidelines. Grounded in %s (%s, %s).",
+                "In response to %s's requirement regarding \"%s\":\n\n%s\n\n" +
+                "Compliance & Grounding: Verified in Azentio organizational documentation (%s - %s, %s).",
                 clientName, question, top.getApprovedAnswer(), top.getSourceType(), top.getSourceDocument(), top.getSectionReference()
         );
     }
@@ -275,13 +341,18 @@ public class RfpAgentService {
         return RfpQueryResponseDTO.builder()
                 .queryId(query.getId())
                 .responseId(response != null ? response.getId() : null)
+                .requirementId(query.getRequirementId())
                 .rfpTitle(query.getRfpTitle())
                 .clientName(query.getClientName())
                 .sectionName(query.getSectionName())
                 .question(query.getQuestionText())
                 .category(query.getCategory())
                 .requirementType(query.getRequirementType())
-                .complianceStatus(query.getComplianceStatus())
+                .questionType(query.getQuestionType())
+                .responseClassification(response != null ? response.getResponseClassification() : query.getComplianceStatus())
+                .unansweredExplanation(response != null ? response.getUnansweredExplanation() : null)
+                .isDuplicate(query.getIsDuplicate())
+                .duplicateOfId(query.getDuplicateOfId())
                 .guardrailFlag(query.getGuardrailFlag())
                 .guardrailReason(response != null ? response.getGuardrailReason() : null)
                 .assignedOwner(query.getAssignedOwner())

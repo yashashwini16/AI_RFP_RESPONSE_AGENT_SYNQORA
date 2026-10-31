@@ -134,10 +134,21 @@ public class RfpController {
     }
 
     /**
-     * Workflow 6 & 7: Export Formatted Proposal Document
+     * Level 1 Capability 6: Export Consolidated Response to Word / Markdown Document
      */
     @GetMapping("/export/{rfpTitle}")
     public ResponseEntity<RfpExportDTO> exportProposal(@PathVariable("rfpTitle") String rfpTitle) {
         return ResponseEntity.ok(exportService.exportRfp(rfpTitle));
+    }
+
+    /**
+     * Level 1 Capability 6: Export Consolidated Response to Excel Spreadsheet (.csv)
+     */
+    @GetMapping(value = "/export/excel", produces = "text/csv")
+    public ResponseEntity<String> exportExcelSpreadsheet() {
+        String csv = exportService.exportExcelCsv("all");
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"Azentio_RFP_Consolidated_Response.csv\"")
+                .body(csv);
     }
 }
