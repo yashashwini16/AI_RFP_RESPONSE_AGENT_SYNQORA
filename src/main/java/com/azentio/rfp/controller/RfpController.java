@@ -58,8 +58,9 @@ public class RfpController {
      * List all RFP Questions & Requirements (Workflow 2)
      */
     @GetMapping("/queries")
-    public ResponseEntity<List<RfpQueryResponseDTO>> listAllQueries() {
-        return ResponseEntity.ok(agentService.getAllQueriesWithResponses());
+    public ResponseEntity<List<RfpQueryResponseDTO>> listAllQueries(
+            @RequestParam(value = "documentId", required = false) Long documentId) {
+        return ResponseEntity.ok(agentService.getQueriesForDocumentOrLatest(documentId));
     }
 
     /**

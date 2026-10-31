@@ -17,6 +17,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import com.azentio.rfp.model.RfpDocument;
+import com.azentio.rfp.repository.RfpDocumentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ public class RfpAgentService {
     private final RfpResponseRepository responseRepository;
     private final RfpAuditLogRepository auditLogRepository;
     private final RfpKnowledgeBaseRepository knowledgeBaseRepository;
+    private final RfpDocumentRepository documentRepository;
     private final RfpRetrievalService retrievalService;
     private final RfpGuardrailService guardrailService;
     private final RfpClarificationService clarificationService;
@@ -99,6 +102,7 @@ public class RfpAgentService {
 
         // 5. Persist Query
         RfpQuery query = RfpQuery.builder()
+                .documentId(request.getDocumentId())
                 .requirementId(reqId)
                 .rfpTitle(request.getRfpTitle())
                 .clientName(request.getClientName())
@@ -262,9 +266,27 @@ public class RfpAgentService {
     }
 
     public List<RfpQueryResponseDTO> getAllQueriesWithResponses() {
-        List<RfpQuery> queries = queryRepository.findAllByOrderByIdAsc();
-        List<RfpQueryResponseDTO> results = new ArrayList<>();
+        return getQueriesForDocumentOrLatest(null);
+    }
 
+    public List<RfpQueryResponseDTO> getQueriesForDocumentOrLatest(Long documentId) {
+        List<RfpQuery> queries;
+        if (documentId != null) {
+            queries = queryRepository.findByDocumentIdOrderByIdAsc(documentId);
+        } else {
+            List<RfpDocument> docs = documentRepository.findAll();
+            if (!docs.isEmpty()) {
+                RfpDocument latest = docs.get(docs.size() - 1);
+                queries = queryRepository.findByDocumentIdOrderByIdAsc(latest.getId());
+                if (queries.isEmpty()) {
+                    queries = queryRepository.findByRfpTitleOrderByIdAsc(latest.getRfpTitle());
+                }
+            } else {
+                queries = queryRepository.findAllByOrderByIdAsc();
+            }
+        }
+
+        List<RfpQueryResponseDTO> results = new ArrayList<>();
         for (RfpQuery q : queries) {
             RfpResponse resp = responseRepository.findByQueryId(q.getId()).orElse(null);
             List<HistoricalMatchDTO> citations = resp != null ? parseCitations(resp.getSourceCitations()) : Collections.emptyList();

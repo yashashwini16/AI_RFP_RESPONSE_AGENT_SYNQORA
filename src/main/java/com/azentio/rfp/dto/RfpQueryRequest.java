@@ -11,6 +11,7 @@ import lombok.*;
 public class RfpQueryRequest {
 
     private String requirementId; // e.g. REQ-FN-01
+    private Long documentId;
 
     @NotBlank(message = "Question text cannot be blank")
     private String question;

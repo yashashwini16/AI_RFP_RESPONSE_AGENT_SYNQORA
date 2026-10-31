@@ -61,6 +61,7 @@ public class RfpParserService {
                             String qType = cols.length > 5 ? cols[5].replaceAll("^\"|\"$", "").trim() : "EXPLANATION";
 
                             extracted.add(RfpQueryRequest.builder()
+                                    .documentId(doc.getId())
                                     .requirementId(reqId.isBlank() ? "REQ-UP-" + i : reqId)
                                     .rfpTitle(resolvedTitle)
                                     .clientName(resolvedClient)
@@ -82,6 +83,7 @@ public class RfpParserService {
         if (extracted.isEmpty()) {
             extracted = List.of(
                     RfpQueryRequest.builder()
+                            .documentId(doc.getId())
                             .requirementId("REQ-FN-01")
                             .rfpTitle(resolvedTitle)
                             .clientName(resolvedClient)
@@ -92,6 +94,7 @@ public class RfpParserService {
                             .question("Does the platform support automated Murabaha commodity broker integration and Shariah asset sequence validation?")
                             .build(),
                     RfpQueryRequest.builder()
+                            .documentId(doc.getId())
                             .requirementId("REQ-FN-02")
                             .rfpTitle(resolvedTitle)
                             .clientName(resolvedClient)
@@ -102,6 +105,7 @@ public class RfpParserService {
                             .question("How does iMAL manage Ijara asset ownership, insurance takaful, and variable profit rate repricing?")
                             .build(),
                     RfpQueryRequest.builder()
+                            .documentId(doc.getId())
                             .requirementId("REQ-SEC-01")
                             .rfpTitle(resolvedTitle)
                             .clientName(resolvedClient)
@@ -112,6 +116,7 @@ public class RfpParserService {
                             .question("Does the solution provide an immutable Shariah audit trail and separate non-halal income purification accounting?")
                             .build(),
                     RfpQueryRequest.builder()
+                            .documentId(doc.getId())
                             .requirementId("REQ-TECH-01")
                             .rfpTitle(resolvedTitle)
                             .clientName(resolvedClient)
@@ -122,6 +127,7 @@ public class RfpParserService {
                             .question("What are the guaranteed RPO and RTO during multi-region hybrid disaster recovery?")
                             .build(),
                     RfpQueryRequest.builder()
+                            .documentId(doc.getId())
                             .requirementId("REQ-COM-01")
                             .rfpTitle(resolvedTitle)
                             .clientName(resolvedClient)
@@ -132,6 +138,7 @@ public class RfpParserService {
                             .question("Provide the total software license fee pricing and 5-year maintenance cost schedule for 500,000 active Islamic accounts.")
                             .build(),
                     RfpQueryRequest.builder()
+                            .documentId(doc.getId())
                             .requirementId("REQ-INT-01")
                             .rfpTitle(resolvedTitle)
                             .clientName(resolvedClient)

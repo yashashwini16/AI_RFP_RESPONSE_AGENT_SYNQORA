@@ -212,10 +212,15 @@
     <div id="tab-view-workbench" class="hidden space-y-6">
 
       <!-- Workbench Header & Filter Bar -->
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-slate-200">
         <div>
-          <h2 class="text-xl font-bold text-slate-900">Sales Engineering Review Workbench</h2>
-          <p class="text-xs text-slate-500">Sales Engineer in Full Control — Edit Drafts, Inspect Citations, and Approve Responses</p>
+          <div class="flex items-center space-x-2">
+            <h2 class="text-xl font-bold text-slate-900">Sales Engineering Review Workbench</h2>
+            <span id="activeTenderBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              Active RFP: Qatar Islamic Bank Tender
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">Showing requirements exclusively parsed from the uploaded RFP. Edit answers, inspect grounding citations, and approve.</p>
         </div>
 
         <!-- Filter Buttons -->
@@ -317,6 +322,7 @@
     let allQueries = [];
     let selectedFile = null;
     let currentFilter = 'ALL';
+    let currentDocumentId = null;
 
     window.addEventListener('DOMContentLoaded', () => {
       checkHealth();
@@ -336,6 +342,9 @@
           btn.className = 'px-4 py-1.5 text-xs font-medium rounded-lg text-slate-600 hover:text-slate-900 transition';
         }
       });
+      if (tabId === 'workbench') {
+        fetchQueries();
+      }
       if (tabId === 'export') {
         fetchClarifications();
       }
@@ -392,10 +401,13 @@
 
         if (res.ok) {
           const data = await res.json();
+          currentDocumentId = data.documentId || null;
           showToast('RFP Ingested!', data.message || 'Requirements extracted successfully.');
           document.getElementById('ingestionSummaryCard').classList.remove('hidden');
           document.getElementById('summaryBadgeCount').textContent = `${data.extractedCount || 6} Requirements Extracted`;
-          await fetchQueries();
+          if (data.clientName) document.getElementById('summaryClientName').textContent = data.clientName;
+          document.getElementById('activeTenderBadge').textContent = `Active RFP: ${data.rfpTitle || 'Qatar Islamic Bank Tender'}`;
+          await fetchQueries(currentDocumentId);
         } else {
           await loadDemoBenchmark();
         }
@@ -412,9 +424,11 @@
         const res = await fetch(`${API_BASE}/load-sample-rfp`, { method: 'POST' });
         if (res.ok) {
           const data = await res.json();
+          currentDocumentId = data.documentId || null;
           showToast('Benchmark Loaded', 'Loaded QIB RFP with 6 structured requirements.');
           document.getElementById('ingestionSummaryCard').classList.remove('hidden');
-          await fetchQueries();
+          document.getElementById('activeTenderBadge').textContent = `Active RFP: ${data.rfpTitle || 'Qatar Islamic Bank Tender'}`;
+          await fetchQueries(currentDocumentId);
         }
       } catch (err) {
         showToast('Load Failed', err.message, false);
@@ -434,9 +448,10 @@
       }
     }
 
-    async function fetchQueries() {
+    async function fetchQueries(docId = currentDocumentId) {
       try {
-        const res = await fetch(`${API_BASE}/queries`);
+        const url = docId ? `${API_BASE}/queries?documentId=${docId}` : `${API_BASE}/queries`;
+        const res = await fetch(url);
         if (res.ok) {
           allQueries = await res.json();
           updateKpis();
