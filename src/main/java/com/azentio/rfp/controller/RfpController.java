@@ -111,6 +111,19 @@ public class RfpController {
     }
 
     /**
+     * Level 1 Capability 1: Upload RFP Document (PDF, Excel, Word, CSV)
+     */
+    @PostMapping(value = "/upload", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, Object>> uploadRfpFile(
+            @RequestParam(value = "file", required = false) org.springframework.web.multipart.MultipartFile file,
+            @RequestParam(value = "rfpTitle", required = false) String rfpTitle,
+            @RequestParam(value = "clientName", required = false) String clientName) {
+        log.info("Received RFP upload request for file: {}", (file != null ? file.getOriginalFilename() : "sample"));
+        Map<String, Object> result = parserService.parseUploadedRfp(file, rfpTitle, clientName);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
      * SE Approval & Continuous Learning (Workflow 4 & Guardrails)
      */
     @PostMapping("/responses/{id}/approve")

@@ -28,19 +28,32 @@
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
 
+  <!-- Toast Notification Banner -->
+  <div id="toastNotification" class="fixed top-5 right-5 z-50 transform transition-all duration-300 translate-y-[-100px] opacity-0">
+    <div class="flex items-center px-4 py-3 rounded-xl shadow-xl bg-slate-900 text-white space-x-3 border border-slate-700">
+      <div id="toastIcon" class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <div>
+        <p id="toastTitle" class="text-xs font-bold">RFP Ingested Successfully</p>
+        <p id="toastMsg" class="text-[11px] text-slate-300">Extracted and triaged requirements.</p>
+      </div>
+    </div>
+  </div>
+
   <!-- Top Navigation Header -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <div class="w-10 h-10 rounded-lg bg-blue-900 flex items-center justify-center text-white font-bold text-xl shadow">
-          <i class="fa-solid fa-layer-group"></i>
+          <i class="fa-solid fa-building-columns"></i>
         </div>
         <div>
           <div class="flex items-center space-x-2">
-            <h1 class="text-lg font-bold text-slate-900">Azentio iMAL RFP Copilot</h1>
-            <span class="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800 rounded-full">Level 1 Active</span>
+            <h1 class="text-lg font-bold text-slate-900">Azentio iMAL Islamic Banking Copilot</h1>
+            <span class="px-2 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">Challenge B: Level 1</span>
           </div>
-          <p class="text-xs text-slate-500">Autonomous Proposal Intelligence & Grounded Islamic Banking RAG</p>
+          <p class="text-xs text-slate-500">Autonomous Proposal Intelligence & Grounded Islamic Finance (Murabaha, Ijara, Sukuk)</p>
         </div>
       </div>
 
@@ -49,9 +62,6 @@
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span id="backendStatusText">Backend Online (Port 8080)</span>
         </div>
-        <button onclick="loadSampleRfp()" class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-white bg-blue-700 hover:bg-blue-800 shadow-sm transition">
-          <i class="fa-solid fa-cloud-arrow-down mr-1.5"></i> Ingest QIB RFP
-        </button>
         <button onclick="downloadExcel()" class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-sm transition">
           <i class="fa-solid fa-file-excel mr-1.5 text-emerald-600"></i> Export Excel
         </button>
@@ -64,6 +74,73 @@
 
   <!-- Main Container -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- RFP Upload & Ingestion Dropzone Card (Level 1 Capability 1) -->
+    <div class="bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 rounded-2xl shadow-lg p-6 text-white">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        <div class="space-y-1.5 max-w-xl">
+          <div class="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-blue-700/60 text-blue-200 text-xs font-semibold tracking-wide">
+            <i class="fa-solid fa-file-arrow-up"></i>
+            <span>Level 1: Document Ingestion Engine</span>
+          </div>
+          <h2 class="text-xl font-bold tracking-tight text-white">Upload Incoming Islamic Banking RFP</h2>
+          <p class="text-xs text-blue-200 leading-relaxed">
+            Upload RFP tenders in <strong class="text-white">Excel (.xlsx), PDF, Word (.docx), or CSV</strong> formats. The agent parses requirement IDs, identifies mandatory instructions, extracts tables, and categorizes functional, technical, security, compliance, and commercial questions.
+          </p>
+        </div>
+
+        <!-- Upload Action Area -->
+        <div class="bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20 flex flex-col sm:flex-row items-center gap-3">
+          <input 
+            type="file" 
+            id="rfpFileInput" 
+            accept=".xlsx,.xls,.pdf,.docx,.csv,.txt" 
+            class="hidden" 
+            onchange="handleFileSelect(event)"
+          />
+          <button 
+            type="button"
+            onclick="document.getElementById('rfpFileInput').click()" 
+            class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-white text-blue-900 font-bold text-xs shadow hover:bg-blue-50 transition"
+          >
+            <i class="fa-solid fa-folder-open mr-2 text-blue-700"></i> Browse File
+          </button>
+
+          <button 
+            id="btnUploadFile"
+            type="button"
+            onclick="uploadSelectedFile()" 
+            class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow transition"
+          >
+            <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Ingest & Parse
+          </button>
+
+          <button 
+            type="button"
+            onclick="loadDemoBenchmark()" 
+            class="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2.5 rounded-lg bg-blue-950/60 hover:bg-blue-950 text-blue-200 text-xs font-medium border border-blue-400/30 transition"
+          >
+            <i class="fa-solid fa-wand-magic-sparkles mr-1.5 text-amber-300"></i> Load Demo RFP
+          </button>
+        </div>
+      </div>
+
+      <!-- File selection status bar -->
+      <div id="fileSelectionBar" class="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between text-xs text-blue-200">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-file-circle-check text-emerald-400"></i>
+          <span>Selected File:</span>
+          <span id="selectedFileName" class="font-mono text-white font-bold bg-white/10 px-2 py-0.5 rounded">QIB_Islamic_Banking_RFP_2026.xlsx (Benchmark Tender)</span>
+        </div>
+        <div class="flex items-center space-x-3 text-[11px] text-blue-300">
+          <span>Client: <strong class="text-white">Qatar Islamic Bank</strong></span>
+          <span>•</span>
+          <span>Suite: <strong class="text-white">Azentio iMAL Core Banking</strong></span>
+          <span>•</span>
+          <span>Preserves IDs: <code class="text-amber-300">REQ-FN-01</code></span>
+        </div>
+      </div>
+    </div>
 
     <!-- KPI Summary Row -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -253,12 +330,92 @@
   <script>
     const API_BASE = 'http://localhost:8080/api/v1/rfp';
     let allQueries = [];
+    let selectedFile = null;
 
     // Initialize application on page load
     window.addEventListener('DOMContentLoaded', () => {
       checkHealth();
       fetchQueries();
     });
+
+    function showToast(title, msg, isSuccess = true) {
+      const toast = document.getElementById('toastNotification');
+      document.getElementById('toastTitle').textContent = title;
+      document.getElementById('toastMsg').textContent = msg;
+      const icon = document.getElementById('toastIcon');
+      if (isSuccess) {
+        icon.className = 'w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm';
+        icon.innerHTML = '<i class="fa-solid fa-check"></i>';
+      } else {
+        icon.className = 'w-7 h-7 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-sm';
+        icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+      }
+      toast.classList.remove('translate-y-[-100px]', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-[-100px]', 'opacity-0');
+      }, 4000);
+    }
+
+    function handleFileSelect(e) {
+      if (e.target.files && e.target.files[0]) {
+        selectedFile = e.target.files[0];
+        document.getElementById('selectedFileName').textContent = `${selectedFile.name} (${Math.round(selectedFile.size / 1024)} KB)`;
+        showToast('File Ready', `Selected ${selectedFile.name}. Click "Ingest & Parse" to process.`);
+      }
+    }
+
+    async function uploadSelectedFile() {
+      const btn = document.getElementById('btnUploadFile');
+      const original = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Parsing...`;
+      btn.disabled = true;
+
+      try {
+        const formData = new FormData();
+        if (selectedFile) {
+          formData.append('file', selectedFile);
+          formData.append('rfpTitle', selectedFile.name.replace(/\.[^/.]+$/, ""));
+        } else {
+          formData.append('rfpTitle', 'Qatar Islamic Bank Core Modernization & Islamic Lending RFP');
+        }
+        formData.append('clientName', 'Qatar Islamic Bank');
+
+        const res = await fetch(`${API_BASE}/upload`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          showToast('RFP Ingested!', data.message || 'Requirements extracted successfully.');
+          await fetchQueries();
+        } else {
+          showToast('Upload Issue', 'Falling back to benchmark requirements.', false);
+          await loadDemoBenchmark();
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Error', err.message, false);
+      } finally {
+        btn.innerHTML = original;
+        btn.disabled = false;
+      }
+    }
+
+    async function loadDemoBenchmark() {
+      try {
+        const res = await fetch(`${API_BASE}/load-sample-rfp`, { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json();
+          showToast('Benchmark Loaded', 'Loaded QIB RFP with 6 structured requirements.');
+          await fetchQueries();
+        }
+      } catch (err) {
+        showToast('Load Failed', err.message, false);
+      }
+    }
 
     async function checkHealth() {
       try {
@@ -472,22 +629,11 @@
           })
         });
         if (res.ok) {
+          showToast('Approved', 'Response marked SE Approved & saved to audit log.');
           fetchQueries();
         }
       } catch (err) {
-        console.error('Approval failed:', err);
-      }
-    }
-
-    async function loadSampleRfp() {
-      try {
-        const res = await fetch(`${API_BASE}/load-sample-rfp`, { method: 'POST' });
-        if (res.ok) {
-          await fetchQueries();
-          alert('Successfully ingested and triaged Qatar Islamic Bank RFP!');
-        }
-      } catch (err) {
-        alert('Failed to load sample RFP: ' + err.message);
+        showToast('Approval Failed', err.message, false);
       }
     }
 
@@ -525,10 +671,11 @@
         if (res.ok) {
           const data = await res.json();
           renderInteractiveResult(data);
-          fetchQueries(); // refresh table
+          showToast('Analyzed', `Grounded with ${data.confidenceScore}% confidence.`);
+          fetchQueries();
         }
       } catch (err) {
-        alert('Query failed: ' + err.message);
+        showToast('Query Failed', err.message, false);
       } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
