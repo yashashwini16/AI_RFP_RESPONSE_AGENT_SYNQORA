@@ -47,4 +47,24 @@ public class RfpQueryResponseDTO {
     // Latency & Token Metrics
     private Integer latencyMs;
     private String modelUsed;
+
+    // =========================================================================
+    // LEVEL 2 EXTENSIONS
+    // =========================================================================
+    private String responseCode; // S, C, D, T, N
+    private String responseCodeDesc; // Standard capability, etc.
+    private String multiProductComponents;
+    private String dependencies;
+    private Boolean ambiguityFlag;
+    private String ambiguityNotes;
+    private String gapType;
+    private String gapNature;
+    private String assignedDepartment;
+    private Boolean requiresEstimate;
+    private String estimateDetails;
+    private Boolean requiresAttachment;
+    private String partnerDependency;
+    private String validationStatus;
+    private String validationIssues;
+    private Boolean humanValidationRequired;
 }

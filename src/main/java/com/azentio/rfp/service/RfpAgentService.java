@@ -43,6 +43,7 @@ public class RfpAgentService {
     private final RfpGuardrailService guardrailService;
     private final RfpClarificationService clarificationService;
     private final EmbeddingService embeddingService;
+    private final RfpInterpretationService interpretationService;
     private final ObjectMapper objectMapper;
 
     @Value("${openai.api.key:mock}")
@@ -181,6 +182,8 @@ public class RfpAgentService {
                     .status("DRAFTED")
                     .latencyMs(latency)
                     .modelUsed(model)
+                    .responseCode("S")
+                    .responseCodeDesc("Standard capability")
                     .build();
         }
 
@@ -207,7 +210,8 @@ public class RfpAgentService {
         if (guardrail.isTriggered()) {
             query.setComplianceStatus("Partially Addressed");
             query.setStatus("NEEDS_REVIEW");
-            queryRepository.save(query);
+            interpretationService.interpretRequirement(query, 100, guardrail.reasonExplanation());
+        queryRepository.save(query);
 
             RfpResponse response = RfpResponse.builder()
                     .queryId(query.getId())
@@ -271,6 +275,7 @@ public class RfpAgentService {
 
         query.setComplianceStatus(responseClassification);
         query.setStatus(status);
+        interpretationService.interpretRequirement(query, topScore, draftedAnswer);
         queryRepository.save(query);
 
         // 8. Serialize Citations
@@ -327,6 +332,9 @@ public class RfpAgentService {
 
         query.setStatus("APPROVED");
         query.setComplianceStatus("Fully Addressed");
+        int approvedScore = response.getConfidenceScore() != null ? response.getConfidenceScore() : 95;
+        String approvedAns = response.getReviewedAnswer() != null ? response.getReviewedAnswer() : response.getDraftedAnswer();
+        interpretationService.interpretRequirement(query, approvedScore, approvedAns);
         queryRepository.save(query);
 
         if (request.isSaveToKnowledgeBase()) {
@@ -623,6 +631,22 @@ public class RfpAgentService {
                 .isApproved(response != null ? response.getIsApproved() : false)
                 .latencyMs(latency)
                 .modelUsed(model)
+                .responseCode(query.getResponseCode())
+                .responseCodeDesc(query.getResponseCodeDesc())
+                .multiProductComponents(query.getMultiProductComponents())
+                .dependencies(query.getDependencies())
+                .ambiguityFlag(query.getAmbiguityFlag())
+                .ambiguityNotes(query.getAmbiguityNotes())
+                .gapType(query.getGapType())
+                .gapNature(query.getGapNature())
+                .assignedDepartment(query.getAssignedDepartment())
+                .requiresEstimate(query.getRequiresEstimate())
+                .estimateDetails(query.getEstimateDetails())
+                .requiresAttachment(query.getRequiresAttachment())
+                .partnerDependency(query.getPartnerDependency())
+                .validationStatus(query.getValidationStatus())
+                .validationIssues(query.getValidationIssues())
+                .humanValidationRequired(query.getHumanValidationRequired())
                 .build();
     }
 

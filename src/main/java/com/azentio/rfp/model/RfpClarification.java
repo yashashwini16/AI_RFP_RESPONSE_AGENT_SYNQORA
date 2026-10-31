@@ -46,6 +46,21 @@ public class RfpClarification {
     @Column(name = "reason_justification", nullable = false, columnDefinition = "TEXT")
     private String reasonJustification;
 
+    // Level 2 Fields
+    @Column(name = "working_assumption", columnDefinition = "TEXT")
+    private String workingAssumption;
+
+    @Column(name = "impact_priority", length = 20)
+    @Builder.Default
+    private String impactPriority = "MEDIUM"; // HIGH, MEDIUM, LOW
+
+    @Column(name = "impact_area", length = 50)
+    @Builder.Default
+    private String impactArea = "SOLUTION_DESIGN"; // SOLUTION_DESIGN, DELIVERY_TIMELINE, COMMERCIAL_SCOPE
+
+    @Column(name = "cluster_group", length = 100)
+    private String clusterGroup; // Consolidated grouping to avoid redundant requests
+
     @Column(name = "created_at")
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

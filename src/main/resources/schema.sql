@@ -95,3 +95,52 @@ CREATE TABLE IF NOT EXISTS rfp_audit_log (
 
 -- Index for HNSW Vector Cosine Distance
 CREATE INDEX IF NOT EXISTS idx_rfp_kb_embedding ON rfp_knowledge_base USING hnsw (embedding vector_cosine_ops);
+
+-- =========================================================================
+-- LEVEL 2: COMPLIANCE, GAP ANALYSIS & COLLABORATION EXTENSIONS
+-- =========================================================================
+
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS response_code VARCHAR(10);
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS response_code_desc VARCHAR(150);
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS multi_product_components TEXT;
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS dependencies TEXT;
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS ambiguity_flag BOOLEAN DEFAULT FALSE;
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS ambiguity_notes TEXT;
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS gap_type VARCHAR(50) DEFAULT 'NONE';
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS gap_nature VARCHAR(50) DEFAULT 'NONE';
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS assigned_department VARCHAR(50) DEFAULT 'SALES_ENGINEERING';
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS requires_estimate BOOLEAN DEFAULT FALSE;
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS estimate_details VARCHAR(100);
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS requires_attachment BOOLEAN DEFAULT FALSE;
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS partner_dependency VARCHAR(150);
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS validation_status VARCHAR(50) DEFAULT 'PASSED';
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS validation_issues TEXT;
+ALTER TABLE rfp_queries ADD COLUMN IF NOT EXISTS human_validation_required BOOLEAN DEFAULT FALSE;
+
+ALTER TABLE rfp_clarifications ADD COLUMN IF NOT EXISTS working_assumption TEXT;
+ALTER TABLE rfp_clarifications ADD COLUMN IF NOT EXISTS impact_priority VARCHAR(20) DEFAULT 'MEDIUM';
+ALTER TABLE rfp_clarifications ADD COLUMN IF NOT EXISTS impact_area VARCHAR(50) DEFAULT 'SOLUTION_DESIGN';
+ALTER TABLE rfp_clarifications ADD COLUMN IF NOT EXISTS cluster_group VARCHAR(100);
+
+-- Customer Compliance Code Schemes (S/C/D/T/N or custom)
+CREATE TABLE IF NOT EXISTS rfp_compliance_code_schemes (
+    id SERIAL PRIMARY KEY,
+    scheme_key VARCHAR(50) NOT NULL,
+    code VARCHAR(10) NOT NULL,
+    classification VARCHAR(100) NOT NULL,
+    description TEXT,
+    requires_explanation BOOLEAN DEFAULT FALSE,
+    requires_estimate BOOLEAN DEFAULT FALSE,
+    requires_attachment BOOLEAN DEFAULT FALSE
+);
+
+-- Requirement Inter-Dependencies
+CREATE TABLE IF NOT EXISTS rfp_requirement_dependencies (
+    id SERIAL PRIMARY KEY,
+    document_id INT,
+    source_requirement_id VARCHAR(50) NOT NULL,
+    target_requirement_id VARCHAR(50) NOT NULL,
+    dependency_type VARCHAR(50) NOT NULL,
+    description TEXT
+);
+

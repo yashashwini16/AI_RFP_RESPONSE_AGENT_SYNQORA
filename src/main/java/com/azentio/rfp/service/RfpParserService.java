@@ -30,6 +30,7 @@ public class RfpParserService {
 
     private final RfpDocumentRepository documentRepository;
     private final RfpClarificationRepository clarificationRepository;
+    private final com.azentio.rfp.repository.RfpRequirementDependencyRepository dependencyRepository;
     private final RfpAgentService agentService;
 
     /**
@@ -189,6 +190,28 @@ public class RfpParserService {
                             .requirementType("OPTIONAL")
                             .questionType("EXPLANATION")
                             .question("Describe the native quantum encryption protocol used for cross-border Islamic Sukuk smart contracts.")
+                            .build(),
+                    RfpQueryRequest.builder()
+                            .documentId(doc.getId())
+                            .requirementId("REQ-DEV-01")
+                            .rfpTitle(resolvedTitle)
+                            .clientName(resolvedClient)
+                            .sectionName("Section 5: FinTech Integrations")
+                            .category("INTEGRATION")
+                            .requirementType("MANDATORY")
+                            .questionType("EXPLANATION")
+                            .question("Provide custom bespoke API adapter for Qatar Central Bank (QCB) Instant Payment Service (QMP) switch.")
+                            .build(),
+                    RfpQueryRequest.builder()
+                            .documentId(doc.getId())
+                            .requirementId("REQ-DIG-01")
+                            .rfpTitle(resolvedTitle)
+                            .clientName(resolvedClient)
+                            .sectionName("Section 6: Digital Banking & Onboarding")
+                            .category("FUNCTIONAL")
+                            .requirementType("MANDATORY")
+                            .questionType("CONFIRMATION")
+                            .question("Does the digital onboarding mobile journey integrate with Qatar National ID e-KYC and automatically create the core Islamic CIF?")
                             .build()
             );
         }
@@ -399,8 +422,30 @@ public class RfpParserService {
                     .reasonJustification("Guaranteed RPO < 5 minutes requires synchronous database replication with round-trip latency under 10ms.")
                     .status("PENDING_CUSTOMER_FEEDBACK")
                     .build());
-        }
 
+            dependencyRepository.save(com.azentio.rfp.model.RfpRequirementDependency.builder()
+                    .documentId(docId)
+                    .sourceRequirementId("REQ-FN-01")
+                    .targetRequirementId("REQ-SEC-01")
+                    .dependencyType("SHARIAH_AUDIT")
+                    .description("Murabaha trade sequence execution requires Shariah audit trail locking.")
+                    .build());
+            dependencyRepository.save(com.azentio.rfp.model.RfpRequirementDependency.builder()
+                    .documentId(docId)
+                    .sourceRequirementId("REQ-DIG-01")
+                    .targetRequirementId("REQ-FN-01")
+                    .dependencyType("DATA_DEPENDENCY")
+                    .description("Mobile customer onboarding requires core CIF account creation.")
+                    .build());
+            dependencyRepository.save(com.azentio.rfp.model.RfpRequirementDependency.builder()
+                    .documentId(docId)
+                    .sourceRequirementId("REQ-TECH-01")
+                    .targetRequirementId("INFRA-NET-01")
+                    .dependencyType("ARCHITECTURAL")
+                    .description("Synchronous database replication requires client dark-fiber network connection.")
+                    .build());
+            return documentRepository.findAll().stream().reduce((first, second) -> second).orElse(null);
+        }
         return documentRepository.findAll().stream().reduce((first, second) -> second).orElse(null);
     }
 }

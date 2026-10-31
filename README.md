@@ -65,3 +65,62 @@ flowchart TD
 | `GET` | `/api/v1/rfp/export/all` | Export formatted proposal report adhering to RFP rules |
 
 ---
+
+## 🚀 Level 2: Intelligent Gap Analysis, Compliance & Proposal Assembly
+
+Level 2 extends the platform into an autonomous enterprise proposal intelligence engine:
+
+### Key Level 2 Capabilities:
+1. **Advanced Requirement Interpretation**:
+   - Detects inter-requirement dependencies (`REQ-FN-01` $\rightarrow$ `REQ-SEC-01`).
+   - Identifies multi-product scope (`iMAL Core`, `Azentio Digital Banking`, `TradeGate Broker`, `Shariah Bureau`, `Payment Hub`).
+   - Classifies capabilities into customer codes: **Standard (S)**, **Configuration (C)**, **Development (D)**, **Third-Party (T)**, **Not Available (N)**.
+   - Detects ambiguous, contradictory, or incomplete requirements.
+
+2. **Intelligent Compliance Matrix**:
+   - Customer-adaptive coding schema (S/C/D/T/N or custom).
+   - Evidence-backed recommendations grounded in citations.
+   - Human validation gating for low confidence (<80%) or incomplete evidence.
+   - Mandatory disclosure flags: Engineering man-day estimates (Code D) and Third-Party partner disclosures (Code T).
+
+3. **AI-Driven Gap Analysis**:
+   - Crucially distinguishes **Confirmed Product Gaps** (limitations in current release) from **Knowledge Gaps** (insufficient documentation).
+   - Categorizes into: *Functionality Gaps*, *Integration Dependencies*, *Security Concerns*, *Missing Documentation*.
+   - Routes actionable escalations to: **Product Management (PM)**, **Solution Architecture (SA)**, **Core Engineering**, and **Shariah Advisory Board**.
+
+4. **Clarification Query Generation**:
+   - Compiles structured queries: Clause, Ambiguity, Working Assumption, Clarification Question.
+   - Prioritizes by business impact: *Solution Design*, *Delivery Timeline*, *Commercial Scope*.
+   - Clustered and deduplicated to avoid redundant client requests.
+
+5. **Intelligent Response Validation Gate**:
+   - Forensic cross-check against citations.
+   - Flags **Code-to-Narrative Mismatches** (e.g. Code S claiming custom development) as blocking errors.
+   - Detects unsupported claims and cross-clause contradictions.
+   - Verifies all mandatory questions are answered before unlocking submission.
+
+6. **Customer-Specific Formatting & Assembly**:
+   - Preserves section numbering (`SEC-X.Y`) and requirement IDs.
+   - Computes real-time Submission Readiness Score (0–100%) and Gatekeeper status.
+   - Directly populates customer response template (`.csv` / `.xlsx` ready).
+
+7. **Collaborative Review Workflow**:
+   - Role assignments: PM, Solution Architecture, Core Engineering, Shariah Board, Commercial/Legal, SE.
+   - **Selective Section Regeneration**: Re-runs unapproved sections while strictly preserving approved responses.
+
+### 📡 Level 2 REST Endpoints (`/api/v2/rfp`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/v2/rfp/analyze-level2` | Executes full interpretation, S/C/D/T/N coding, gap analysis & forensic validation |
+| `GET` | `/api/v2/rfp/compliance-matrix` | Requirement-by-requirement compliance matrix with customer codes, estimates & disclosures |
+| `GET` | `/api/v2/rfp/gap-analysis` | Confirmed Product Gaps vs Knowledge Gaps report with PM/SA/Eng escalations |
+| `GET` | `/api/v2/rfp/validation-report` | Forensic audit report (unsupported claims, code-narrative mismatches, contradictions) |
+| `GET` | `/api/v2/rfp/clarification-pack` | Deduplicated, prioritized customer clarification pack with impact ratings |
+| `GET` | `/api/v2/rfp/submission-checklist` | Real-time submission readiness cockpit & checklist |
+| `GET` | `/api/v2/rfp/export/customer-template` | Populates and downloads customer Excel response template (`.csv`) |
+| `POST` | `/api/v2/rfp/requirements/{id}/assign` | Re-assign requirement to internal department SME |
+| `POST` | `/api/v2/rfp/requirements/{id}/update-code` | Update delivery code, estimate, or partner details |
+| `POST` | `/api/v2/rfp/regenerate-selective` | Selectively regenerate affected sections while preserving approved responses |
+
+---

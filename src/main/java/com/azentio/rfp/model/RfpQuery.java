@@ -68,4 +68,66 @@ public class RfpQuery {
     @Column(length = 20)
     @Builder.Default
     private String status = "PENDING"; // PENDING, DRAFTED, REVIEWED, APPROVED, NEEDS_REVIEW
+
+    // =========================================================================
+    // LEVEL 2 FIELDS
+    // =========================================================================
+
+    @Column(name = "response_code", length = 10)
+    @Builder.Default
+    private String responseCode = "S"; // S, C, D, T, N (or customer specific)
+
+    @Column(name = "response_code_desc", length = 150)
+    @Builder.Default
+    private String responseCodeDesc = "Standard capability";
+
+    @Column(name = "multi_product_components", columnDefinition = "TEXT")
+    private String multiProductComponents; // e.g. "iMAL Core Banking, Azentio Digital Banking"
+
+    @Column(name = "dependencies", columnDefinition = "TEXT")
+    private String dependencies; // e.g. "REQ-CORE-01"
+
+    @Column(name = "ambiguity_flag")
+    @Builder.Default
+    private Boolean ambiguityFlag = false;
+
+    @Column(name = "ambiguity_notes", columnDefinition = "TEXT")
+    private String ambiguityNotes;
+
+    @Column(name = "gap_type", length = 50)
+    @Builder.Default
+    private String gapType = "NONE"; // NONE, FUNCTIONALITY_GAP, INTEGRATION_GAP, SECURITY_CONCERN, MISSING_DOCS
+
+    @Column(name = "gap_nature", length = 50)
+    @Builder.Default
+    private String gapNature = "NONE"; // NONE, PRODUCT_GAP, KNOWLEDGE_GAP
+
+    @Column(name = "assigned_department", length = 50)
+    @Builder.Default
+    private String assignedDepartment = "SALES_ENGINEERING"; // PRODUCT_MANAGEMENT, SOLUTION_ARCHITECTURE, CORE_ENGINEERING, SHARIAH_BOARD, COMMERCIAL_LEGAL, SALES_ENGINEERING
+
+    @Column(name = "requires_estimate")
+    @Builder.Default
+    private Boolean requiresEstimate = false;
+
+    @Column(name = "estimate_details", length = 100)
+    private String estimateDetails; // e.g. "15 Man-Days"
+
+    @Column(name = "requires_attachment")
+    @Builder.Default
+    private Boolean requiresAttachment = false;
+
+    @Column(name = "partner_dependency", length = 150)
+    private String partnerDependency; // e.g. "Bursa Malaysia FIX Gateway"
+
+    @Column(name = "validation_status", length = 50)
+    @Builder.Default
+    private String validationStatus = "PASSED"; // PASSED, WARNING, FAILED_MISMATCH, FAILED_UNSUPPORTED
+
+    @Column(name = "validation_issues", columnDefinition = "TEXT")
+    private String validationIssues;
+
+    @Column(name = "human_validation_required")
+    @Builder.Default
+    private Boolean humanValidationRequired = false;
 }
