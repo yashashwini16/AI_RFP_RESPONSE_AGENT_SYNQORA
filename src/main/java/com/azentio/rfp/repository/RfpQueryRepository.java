@@ -9,5 +9,6 @@ import java.util.List;
 @Repository
 public interface RfpQueryRepository extends JpaRepository<RfpQuery, Long> {
     List<RfpQuery> findByRfpTitleOrderByIdAsc(String rfpTitle);
+    List<RfpQuery> findAllByOrderByIdAsc();
     List<RfpQuery> findAllByOrderByIdDesc();
 }

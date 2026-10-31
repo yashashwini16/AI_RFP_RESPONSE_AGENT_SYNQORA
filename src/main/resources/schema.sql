@@ -1,52 +1,89 @@
--- ========================================================
--- AI RFP RESPONSE AGENT - DATABASE SCHEMA (Azentio Enterprise)
--- ========================================================
+-- =========================================================================
+-- AZENTIO AI RFP RESPONSE AGENT (AGENT 2) - DATABASE SCHEMA
+-- Specialized for Islamic Banking & Lending Proposals (Azentio iMAL Suite)
+-- =========================================================================
 
--- Enable vector extension
 CREATE EXTENSION IF NOT EXISTS vector;
 
-DROP TABLE IF EXISTS rfp_audit_log CASCADE;
-DROP TABLE IF EXISTS rfp_responses CASCADE;
-DROP TABLE IF EXISTS rfp_queries CASCADE;
-DROP TABLE IF EXISTS rfp_knowledge_base CASCADE;
-
--- 1. Historical RFP Knowledge Base (The company's past answers)
-CREATE TABLE rfp_knowledge_base (
+-- 1. Historical Knowledge Vault (3 Grounded Sources: PRODUCT_DOC, PAST_SOW, PAST_RFP)
+CREATE TABLE IF NOT EXISTS rfp_knowledge_base (
     id SERIAL PRIMARY KEY,
-    category VARCHAR(50) NOT NULL,            -- SECURITY, COMPLIANCE, ARCHITECTURE, PRICING, DATABASE, INTEGRATION
+    category VARCHAR(50) NOT NULL,            -- SHARIAH_COMPLIANCE, MURABAHA, IJARA, MUDARABA, SUKUK, ARCHITECTURE, SECURITY
+    source_type VARCHAR(30) NOT NULL,         -- PRODUCT_DOC, PAST_SOW, PAST_RFP
     question TEXT NOT NULL,
     approved_answer TEXT NOT NULL,
-    source_document VARCHAR(100),              -- e.g. "Bank_Doha_RFP_2024.pdf"
-    section_reference VARCHAR(50),             -- e.g. "Section 3.4.1"
-    embedding vector(1536),                    -- Embedding vector for semantic search
+    source_document VARCHAR(100) NOT NULL,     -- e.g. "iMAL_Murabaha_Product_Guide_v15.pdf"
+    section_reference VARCHAR(50),             -- e.g. "Sec 4.2.1"
+    product_version VARCHAR(20) DEFAULT 'iMAL v15.0',
+    embedding vector(1536),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2. Incoming RFP Queries (The new questions to answer)
-CREATE TABLE rfp_queries (
+-- 2. Incoming RFP Documents & Formatting Guidelines
+CREATE TABLE IF NOT EXISTS rfp_documents (
     id SERIAL PRIMARY KEY,
-    rfp_title VARCHAR(100) NOT NULL,           -- e.g. "Qatar National Bank Core Upgrade"
-    client_name VARCHAR(100),
-    question_text TEXT NOT NULL,
-    category VARCHAR(50),
-    status VARCHAR(20) DEFAULT 'PENDING'       -- PENDING, DRAFTED, REVIEWED, APPROVED, NEEDS_REVIEW
+    filename VARCHAR(150) NOT NULL,
+    rfp_title VARCHAR(150) NOT NULL,
+    client_name VARCHAR(100) NOT NULL,
+    submission_deadline VARCHAR(50),
+    formatting_rules JSONB,                   -- {"font": "Arial", "max_words": 200, "numbering": "section_based"}
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3. AI Generated Responses
-CREATE TABLE rfp_responses (
+-- 3. Incoming RFP Questions / Requirements
+CREATE TABLE IF NOT EXISTS rfp_queries (
+    id SERIAL PRIMARY KEY,
+    document_id INT REFERENCES rfp_documents(id) ON DELETE CASCADE,
+    rfp_title VARCHAR(100) NOT NULL,
+    client_name VARCHAR(100),
+    section_name VARCHAR(100) DEFAULT 'General Requirements',
+    question_text TEXT NOT NULL,
+    category VARCHAR(50),
+    requirement_type VARCHAR(20) DEFAULT 'MANDATORY', -- MANDATORY, OPTIONAL, INFO
+    compliance_status VARCHAR(20) DEFAULT 'COMPLIANT', -- COMPLIANT, PARTIALLY_COMPLIANT, NON_COMPLIANT, CLARIFICATION
+    guardrail_flag VARCHAR(50) DEFAULT 'TECHNICAL',   -- TECHNICAL, LEGAL_REVIEW, PRICING_DESK, SLA_COMMITMENT
+    assigned_owner VARCHAR(50) DEFAULT 'SE_TECHNICAL',
+    status VARCHAR(20) DEFAULT 'PENDING'              -- PENDING, DRAFTED, REVIEWED, APPROVED, NEEDS_REVIEW
+);
+
+-- 4. AI Generated Proposal Responses & Citations
+CREATE TABLE IF NOT EXISTS rfp_responses (
     id SERIAL PRIMARY KEY,
     query_id INT REFERENCES rfp_queries(id) ON DELETE CASCADE,
     drafted_answer TEXT NOT NULL,
-    confidence_score INT NOT NULL,             -- 0 to 100
-    source_citations JSONB,                    -- List of historical RFPs used
-    gap_flag BOOLEAN DEFAULT FALSE,            -- TRUE if knowledge was insufficient
-    reviewed_answer TEXT,                      -- Edited by human engineer
+    confidence_score INT NOT NULL,                    -- 0 to 100
+    source_citations JSONB,                           -- List of sources with source_type & version
+    gap_flag BOOLEAN DEFAULT FALSE,
+    guardrail_reason TEXT,                            -- Explanation if legal/pricing flagged
+    reviewed_answer TEXT,
     is_approved BOOLEAN DEFAULT FALSE,
+    outdated_warning TEXT,                            -- If source version is old
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. Audit & Latency Log
-CREATE TABLE rfp_audit_log (
+-- 5. Customer Clarification Queries List (Consolidated & Deduplicated)
+CREATE TABLE IF NOT EXISTS rfp_clarifications (
+    id SERIAL PRIMARY KEY,
+    query_id INT REFERENCES rfp_queries(id) ON DELETE CASCADE,
+    question_text TEXT NOT NULL,
+    clarification_needed TEXT NOT NULL,
+    reason_justification TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Conversational Memory (SE Chat Collaboration & Rewrites)
+CREATE TABLE IF NOT EXISTS rfp_chat_messages (
+    id SERIAL PRIMARY KEY,
+    session_id VARCHAR(50) NOT NULL,
+    query_id INT,
+    sender VARCHAR(20) NOT NULL,                      -- SE, AGENT
+    message TEXT NOT NULL,
+    action_type VARCHAR(50),                          -- REWRITE, APPROVAL, CLARIFICATION, EXPLANATION
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. Audit & Latency Log
+CREATE TABLE IF NOT EXISTS rfp_audit_log (
     id SERIAL PRIMARY KEY,
     query_id INT,
     model_used VARCHAR(50),
@@ -56,33 +93,5 @@ CREATE TABLE rfp_audit_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Index for Vector Search Cosine Distance
+-- Index for HNSW Vector Cosine Distance
 CREATE INDEX IF NOT EXISTS idx_rfp_kb_embedding ON rfp_knowledge_base USING hnsw (embedding vector_cosine_ops);
-
--- ========================================================
--- SEED DATA (Azentio Enterprise Banking Sample Q&As)
--- ========================================================
-INSERT INTO rfp_knowledge_base (category, question, approved_answer, source_document, section_reference) VALUES
-('SECURITY', 'How is data encrypted at rest and in transit?', 
- 'All data at rest is encrypted using AES-256 GCM encryption across all storage tiers including tablespaces, redo logs, and database backups with HSM integration. Data in transit is secured using TLS 1.3 with strict forward secrecy and mutual certificate authentication (mTLS).', 
- 'Azentio_Security_Whitepaper_2025.pdf', 'Sec 4.2'),
-
-('ARCHITECTURE', 'Does the platform support high availability and multi-region failover?', 
- 'Yes, the Azentio Core Banking system architecture supports active-passive and active-active clustering across multi-availability zones with an RPO of under 5 minutes and an RTO of under 15 minutes, orchestrated using Kubernetes and automated DNS failover.', 
- 'iMAL_Cloud_Architecture_Guide.pdf', 'Sec 2.1'),
-
-('COMPLIANCE', 'Is the software compliant with ISO 27001 and SOC 2 Type II?', 
- 'Yes, Azentio platforms maintain annual SOC 2 Type II certifications across all five trust service criteria (Security, Availability, Processing Integrity, Confidentiality, and Privacy) and comply fully with ISO/IEC 27001:2022 standards.', 
- 'Compliance_Summary_Report_2024.pdf', 'Sec 1.0'),
-
-('DATABASE', 'Does Azentio support Oracle Database and PL/SQL stored procedures?', 
- 'Yes, Azentio iMAL and Core platforms natively support Oracle Database 19c and 23ai enterprise editions, including Oracle Real Application Clusters (RAC), Exadata engineered systems, and heavily optimized PL/SQL package architectures.', 
- 'Azentio_Database_Compatibility_Matrix.pdf', 'Sec 3.1'),
-
-('PERFORMANCE', 'What is the benchmarked TPS (Transactions Per Second) and concurrent user capacity?', 
- 'The platform is benchmarked to sustain over 12,000 online banking TPS and 35,000 batch EOD transactions per minute with sub-80 millisecond 99th percentile response times, scaling to 100,000 concurrent sessions.', 
- 'Core_Banking_Performance_Benchmark_2025.pdf', 'Sec 5.4'),
-
-('INTEGRATION', 'How does the platform integrate with core banking APIs and legacy switch networks?', 
- 'Azentio provides over 400+ pre-built, ISO 20022 and BIAN-compliant REST/JSON APIs, as well as native connectors for SWIFT MT/MX messaging, ISO 8583 payment card switches, and Kafka-based event streaming.', 
- 'Azentio_Open_Banking_Integration_Spec.pdf', 'Sec 2.3');

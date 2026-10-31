@@ -31,11 +31,17 @@ public class RfpResponse {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "source_citations", columnDefinition = "jsonb")
-    private String sourceCitations; // JSONB storage
+    private String sourceCitations; // JSONB storage with source_type & version
 
     @Column(name = "gap_flag")
     @Builder.Default
     private Boolean gapFlag = false;
+
+    @Column(name = "guardrail_reason", columnDefinition = "TEXT")
+    private String guardrailReason; // Triggered if Legal or Pricing terms detected
+
+    @Column(name = "outdated_warning", columnDefinition = "TEXT")
+    private String outdatedWarning; // Warning if source version is obsolete
 
     @Column(name = "reviewed_answer", columnDefinition = "TEXT")
     private String reviewedAnswer;

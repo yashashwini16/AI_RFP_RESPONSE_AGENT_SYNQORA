@@ -15,11 +15,11 @@ public interface RfpKnowledgeBaseRepository extends JpaRepository<RfpKnowledgeBa
 
     /**
      * Native PgVector Cosine Similarity Semantic Retrieval
-     * Cosine distance: <=> returns 0 for identical, 2 for opposite.
-     * Cosine similarity: 1 - (embedding <=> :queryVector)
+     * Grounds in 3 sources: PRODUCT_DOC, PAST_SOW, PAST_RFP
      */
     @Query(value = """
-            SELECT id, category, question, approved_answer AS approvedAnswer, 
+            SELECT id, category, source_type AS sourceType, product_version AS productVersion,
+                   question, approved_answer AS approvedAnswer, 
                    source_document AS sourceDocument, section_reference AS sectionReference,
                    (1.0 - (embedding <=> cast(:queryVector as vector))) AS similarityScore
             FROM rfp_knowledge_base
@@ -33,10 +33,11 @@ public interface RfpKnowledgeBaseRepository extends JpaRepository<RfpKnowledgeBa
     );
 
     /**
-     * Fallback full-text keyword search if embeddings are still initializing
+     * Fallback full-text keyword search
      */
     @Query(value = """
-            SELECT id, category, question, approved_answer AS approvedAnswer, 
+            SELECT id, category, source_type AS sourceType, product_version AS productVersion,
+                   question, approved_answer AS approvedAnswer, 
                    source_document AS sourceDocument, section_reference AS sectionReference,
                    0.75 AS similarityScore
             FROM rfp_knowledge_base
@@ -55,7 +56,8 @@ public interface RfpKnowledgeBaseRepository extends JpaRepository<RfpKnowledgeBa
     void updateEmbedding(@Param("id") Long id, @Param("embedding") String embedding);
 
     @Query(value = """
-            SELECT id, category, question, approved_answer AS approvedAnswer, 
+            SELECT id, category, source_type AS sourceType, product_version AS productVersion,
+                   question, approved_answer AS approvedAnswer, 
                    source_document AS sourceDocument, section_reference AS sectionReference,
                    0.0 AS similarityScore
             FROM rfp_knowledge_base 

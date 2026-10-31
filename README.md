@@ -1,36 +1,85 @@
-# Azentio AI RFP Response Agent
-
-An enterprise AI copilot that ingests historical proposals, security whitepapers, and technical specifications into PostgreSQL with PgVector, semantically retrieves verified answers using cosine distance, synthesizes grounded proposals via LangChain4j, calculates confidence scores, flags knowledge gaps, and supports a continuous learning loop.
-
----
-
-## 🚀 Quick Start
-
-### 1. Database Setup (PgVector on Port 5433)
-The PgVector Docker container is already running on port 5433.
-To stop or restart:
-```bash
-docker compose up -d
-```
-
-### 2. Run Backend
-```bash
-mvn -s ./settings-hackathon.xml spring-boot:run
-```
-Backend runs at: `http://localhost:8080/api/v1/rfp`  
-Health check: `http://localhost:8080/api/v1/rfp/health`
+# Azentio Agent 2: AI RFP Response Agent (Islamic Banking & Lending)
+> **Azentio GTM AI Hackathon — Challenge B Solution**  
+> *Target Product Suite: Azentio iMAL Core Banking & Islamic Lending Suite*
 
 ---
 
-## 📡 API Endpoints
+## 🌟 Executive Overview & Purpose
 
-| Method | Endpoint | Description | Milestone |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/rfp/health` | Health & milestone readiness check | All |
-| `POST` | `/api/v1/rfp/query` | Ingest new RFP question, retrieve vector matches & draft answer | M1 & M2 |
-| `GET` | `/api/v1/rfp/search?q={question}` | Direct semantic retrieval of top-K matches | M1 |
-| `GET` | `/api/v1/rfp/queries` | List all questions with answers & status | M2 & M3 |
-| `POST` | `/api/v1/rfp/responses/{id}/approve` | Approve answer & save to Knowledge Vault (Continuous Learning) | M3 |
-| `POST` | `/api/v1/rfp/knowledge/ingest` | Ingest new Q&A into Knowledge Vault | M1 |
-| `GET` | `/api/v1/rfp/knowledge` | List all verified knowledge base items | All |
-| `GET` | `/api/v1/rfp/export/{rfpTitle}` | One-click export of proposal to Markdown & JSON | M3 |
+The **RFP Agent** is an enterprise copilot built specifically for **Sales Engineers (SEs)** responding to complex **Islamic Banking and Lending RFPs**. 
+
+Instead of manually digging through 200-page proposal archives and product manuals, the SE uploads an RFP in chat, and the agent works with them question by question:
+1. **Parses & Triages** the RFP sections, requirements, and formatting rules.
+2. **Retrieves Grounded Knowledge** from **3 distinct sources**:
+   - 📘 **Product Documentation** (Azentio iMAL product guides, Murabaha engine, Ijara, Mudaraba, AAOIFI governance)
+   - 📄 **Past Scopes of Work (SOWs)** (Redacted Tier-1 banking transformation deliverables)
+   - 📑 **Past RFP Responses** (Audited and certified historical proposal answers)
+3. **Enforces Enterprise Guardrails**:
+   - 🛡️ **SE in Control**: Every answer remains a draft until explicitly reviewed and approved by the Sales Engineer.
+   - ⚖️ **Commercial & Legal Triage**: Pricing, license fees, SLA liquidated damages, and contractual commitments are **never** auto-generated; they are flagged for the Commercial Desk or Legal Counsel.
+   - 🔒 **Confidentiality / Client Redaction**: Past customer bank names are sanitized (`[REDACTED_TIER1_ISLAMIC_BANK]`).
+   - 🔍 **Source Quality Warning**: Flags when knowledge originates from outdated product versions (e.g. iMAL v12/v13 vs current v15.0).
+4. **Clarification Query Compilation**: Generates a consolidated, deduplicated list of questions to send to the client with technical justification instead of inventing assumptions.
+5. **Generates Full Compliance Matrix**: Compliant (`C`), Partially Compliant (`PC`), Non-Compliant (`NC`), Clarification Needed (`CL`).
+6. **Conversational Collaboration & Memory**: SE instructs the agent in chat ("Rewrite to emphasize AAOIFI compliance", "Shorten answer to 200 words", "Approve answer").
+
+---
+
+## 🏗️ Architecture & Tech Stack
+
+```mermaid
+flowchart TD
+    A[Sales Engineer / Client RFP Upload] --> B[RfpParserService & Triage]
+    B --> C{Guardrail Evaluation}
+    C -->|Commercial / Legal| D[Route to Commercial / Legal Owner]
+    C -->|Technical| E[PgVector HNSW Semantic Retrieval]
+    E --> F[(PostgreSQL Knowledge Vault\n3 Grounded Sources)]
+    F --> G[LangChain4j RAG Agentic Synthesizer]
+    G --> H[Confidence Scoring & Gap Analysis]
+    H -->|Confidence < 50%| I[Customer Clarification Queries List]
+    H -->|Confidence >= 50%| J[Drafted Proposal Answer + Citations]
+    J --> K[SE Chat Collaboration & Rewrites]
+    K --> L[Approval & Continuous Learning Loop]
+    L --> M[One-Click Export: Formatted RFP + Compliance Matrix]
+```
+
+- **Backend**: Spring Boot 3.3.4 (Java 21 LTS)
+- **Vector Database**: PostgreSQL 16 + PgVector 0.8.7 (`vector(1536)` with HNSW cosine distance `<=>`)
+- **Agent Orchestration**: LangChain4j 0.36.2 + OpenAI (`gpt-4o-mini`) with offline deterministic n-gram fallback
+- **Frontend**: React + Tailwind CSS Sales Engineering Workbench
+- **Persistence**: Spring Data JPA + JSONB citations + Session chat memory
+
+---
+
+## 📡 Key REST Endpoints
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/rfp/load-sample-rfp` | **Instant Judge Demo:** Ingests Qatar Islamic Bank RFP with 5 sections & formatting rules |
+| `GET` | `/api/v1/rfp/queries` | List all parsed RFP questions with status, citations, and owners |
+| `POST` | `/api/v1/rfp/query` | Process a single RFP question through PgVector and triage |
+| `POST` | `/api/v1/rfp/chat` | Conversational collaboration: instruct agent to rewrite, shorten, or explain |
+| `GET` | `/api/v1/rfp/compliance-matrix` | Full compliance matrix (`C`, `PC`, `NC`, `CL`) |
+| `GET` | `/api/v1/rfp/clarifications` | Consolidated customer clarification queries with reasons |
+| `POST` | `/api/v1/rfp/responses/{id}/approve` | SE approval & continuous learning (saves back to Knowledge Vault) |
+| `GET` | `/api/v1/rfp/export/all` | Export formatted proposal report adhering to RFP rules |
+
+---
+
+## 🎬 End-to-End Demo Script for Judges
+
+1. **Upload & Ingest**:
+   - Click **"⚡ Ingest Benchmark RFP"** (or call `POST /api/v1/rfp/load-sample-rfp`).
+   - The agent ingests the Qatar Islamic Bank Core Banking & Lending RFP across 5 sections.
+2. **Grounded Shariah Answering**:
+   - Inspect **Section 1 (Murabaha)**: Confidence **98% (Green)**, cites `iMAL_Islamic_Financing_Product_Specification_v15.pdf`, explains Shariah sequence (Waad, Ijab wa Qabul).
+   - Inspect **Section 2 (Ijara)**: Grounded in `iMAL_Ijara_Product_Architecture_Guide.pdf`, cites AAOIFI Standard No. 9 and Takaful apportionment.
+3. **Commercial Guardrail in Action**:
+   - Inspect **Section 4 (Pricing)**: Notice the red/amber alert! The agent **refused to invent pricing** and routed it to `COMMERCIAL_DESK` for tailored review.
+4. **SE Collaborative Chat**:
+   - Switch to the **Chat Tab**. Send: *"Rewrite question 1 to emphasize AAOIFI compliance"*.
+   - Watch the agent update the draft dynamically while preserving grounding!
+5. **Customer Clarification Queries List**:
+   - Switch to the **Clarifications Tab**. View formal queries generated for missing technical parameters.
+6. **Compliance Matrix & Final Export**:
+   - View the Compliance Matrix table, then click **"Export Proposal"** to download the complete, submission-ready document.

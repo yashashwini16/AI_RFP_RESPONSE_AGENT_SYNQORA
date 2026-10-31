@@ -1,11 +1,10 @@
 package com.azentio.rfp.controller;
 
 import com.azentio.rfp.dto.*;
+import com.azentio.rfp.model.RfpChatMessage;
+import com.azentio.rfp.model.RfpDocument;
 import com.azentio.rfp.model.RfpKnowledgeBase;
-import com.azentio.rfp.service.RfpAgentService;
-import com.azentio.rfp.service.RfpExportService;
-import com.azentio.rfp.service.RfpKnowledgeService;
-import com.azentio.rfp.service.RfpRetrievalService;
+import com.azentio.rfp.service.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,52 +26,36 @@ public class RfpController {
     private final RfpRetrievalService retrievalService;
     private final RfpKnowledgeService knowledgeService;
     private final RfpExportService exportService;
+    private final RfpChatService chatService;
+    private final RfpComplianceMatrixService complianceMatrixService;
+    private final RfpClarificationService clarificationService;
+    private final RfpParserService parserService;
 
     /**
-     * System Health & Readiness Check
+     * System Health & Agent Capabilities Check
      */
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> checkHealth() {
         Map<String, Object> status = new HashMap<>();
         status.put("status", "UP");
-        status.put("service", "Azentio AI RFP Response Agent");
-        status.put("vectorDb", "PostgreSQL + PgVector");
-        status.put("milestone1Ready", true);
-        status.put("milestone2Ready", true);
-        status.put("milestone3Ready", true);
+        status.put("agent", "Agent 2: Islamic Banking RFP Copilot");
+        status.put("suite", "Azentio iMAL Core Banking & Islamic Lending");
+        status.put("sources", List.of("Product Documentation", "Past Scopes of Work (SOWs)", "Past RFP Responses"));
+        status.put("guardrailsActive", List.of("Commercial & Legal Triage", "Customer Redaction", "Source Quality Check", "Human SE in Control"));
         return ResponseEntity.ok(status);
     }
 
     /**
-     * Milestone 1 & 2 Core Endpoint:
-     * Accepts an enterprise question, retrieves top historical answers with PgVector,
-     * drafts a grounded proposal response, calculates confidence score, and flags gaps.
-     *
-     * Example: POST /api/v1/rfp/query
-     * Body: { "question": "What encryption standards do you use?" }
+     * Triage & Answer an RFP Question (Workflow 3)
      */
     @PostMapping("/query")
     public ResponseEntity<RfpQueryResponseDTO> handleQuery(@Valid @RequestBody RfpQueryRequest request) {
         log.info("Received RFP Query: '{}'", request.getQuestion());
-        RfpQueryResponseDTO response = agentService.processRfpQuery(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(agentService.processRfpQuery(request));
     }
 
     /**
-     * Milestone 1 Mentor Verification Endpoint:
-     * Direct semantic retrieval of top-K historical answers without drafting.
-     */
-    @GetMapping("/search")
-    public ResponseEntity<List<HistoricalMatchDTO>> searchKnowledge(
-            @RequestParam("q") String question,
-            @RequestParam(value = "limit", defaultValue = "3") int limit) {
-        log.info("Direct semantic search query: '{}'", question);
-        List<HistoricalMatchDTO> matches = retrievalService.retrieveTopMatches(question, limit);
-        return ResponseEntity.ok(matches);
-    }
-
-    /**
-     * Retrieve all RFP questions for Frontend UI Left Column
+     * List all RFP Questions & Requirements (Workflow 2)
      */
     @GetMapping("/queries")
     public ResponseEntity<List<RfpQueryResponseDTO>> listAllQueries() {
@@ -80,20 +63,66 @@ public class RfpController {
     }
 
     /**
-     * Milestone 3 Differentiator: Human Approval & Continuous Learning Loop.
-     * Updates review status and saves approved answer into Knowledge Base.
+     * Capability 4: SE Chat Collaboration & Memory (Workflow 4)
+     * Converses with the agent to request rewrites, explanations, or updates.
+     */
+    @PostMapping("/chat")
+    public ResponseEntity<RfpChatResponseDTO> chatWithAgent(@Valid @RequestBody RfpChatRequest request) {
+        log.info("Chat message from SE (session: {}): '{}'", request.getSessionId(), request.getMessage());
+        return ResponseEntity.ok(chatService.handleChat(request));
+    }
+
+    @GetMapping("/chat/history")
+    public ResponseEntity<List<RfpChatMessage>> getChatHistory(@RequestParam(value = "sessionId", defaultValue = "default-session") String sessionId) {
+        return ResponseEntity.ok(chatService.getSessionHistory(sessionId));
+    }
+
+    /**
+     * Capability 5: Consolidated Customer Clarification Queries (Workflow 5)
+     */
+    @GetMapping("/clarifications")
+    public ResponseEntity<List<ClarificationItemDTO>> getClarificationList() {
+        return ResponseEntity.ok(clarificationService.getAllClarifications());
+    }
+
+    /**
+     * Nice to Have / Brownie Point: Compliance Matrix
+     */
+    @GetMapping("/compliance-matrix")
+    public ResponseEntity<List<ComplianceMatrixRowDTO>> getComplianceMatrix() {
+        return ResponseEntity.ok(complianceMatrixService.generateComplianceMatrix());
+    }
+
+    /**
+     * Workflow 1 & 2 Demo Booster:
+     * One-click loader that ingests and parses a complete 5-section Islamic Banking RFP!
+     */
+    @PostMapping("/load-sample-rfp")
+    public ResponseEntity<Map<String, Object>> loadSampleRfp() {
+        RfpDocument doc = parserService.loadSampleIslamicBankingRfp();
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("status", "SUCCESS");
+        resp.put("documentId", doc.getId());
+        resp.put("rfpTitle", doc.getRfpTitle());
+        resp.put("clientName", doc.getClientName());
+        resp.put("submissionDeadline", doc.getSubmissionDeadline());
+        resp.put("message", "Loaded and triaged Qatar Islamic Bank RFP with 5 sections and formatting rules.");
+        return ResponseEntity.ok(resp);
+    }
+
+    /**
+     * SE Approval & Continuous Learning (Workflow 4 & Guardrails)
      */
     @PostMapping("/responses/{id}/approve")
     public ResponseEntity<RfpQueryResponseDTO> approveResponse(
             @PathVariable("id") Long responseId,
             @RequestBody ApproveRequest request) {
-        log.info("Approving response ID: {} (saveToKB={})", responseId, request.isSaveToKnowledgeBase());
-        RfpQueryResponseDTO approved = agentService.approveAndLearn(responseId, request);
-        return ResponseEntity.ok(approved);
+        log.info("Approving response ID: {}", responseId);
+        return ResponseEntity.ok(agentService.approveAndLearn(responseId, request));
     }
 
     /**
-     * Re-index all un-vectorized knowledge base entries
+     * Re-index Knowledge Vault
      */
     @PostMapping("/knowledge/reindex")
     public ResponseEntity<Map<String, Object>> reindexKnowledge() {
@@ -105,30 +134,10 @@ public class RfpController {
     }
 
     /**
-     * Knowledge Vault Ingestion Endpoint
-     */
-    @PostMapping("/knowledge/ingest")
-    public ResponseEntity<RfpKnowledgeBase> ingestKnowledge(@Valid @RequestBody IngestRequest request) {
-        return ResponseEntity.ok(knowledgeService.ingest(request));
-    }
-
-    /**
-     * View all verified Knowledge Base records
-     */
-    @GetMapping("/knowledge")
-    public ResponseEntity<List<RfpKnowledgeBase>> getKnowledgeBase() {
-        return ResponseEntity.ok(knowledgeService.getAllKnowledge());
-    }
-
-    /**
-     * Milestone 3 Differentiator: One-Click Export
-     * Exports entire answered questionnaire as structured JSON and Markdown proposal.
+     * Workflow 6 & 7: Export Formatted Proposal Document
      */
     @GetMapping("/export/{rfpTitle}")
-    public ResponseEntity<RfpExportDTO> exportProposal(
-            @PathVariable("rfpTitle") String rfpTitle) {
-        log.info("Exporting RFP proposal: '{}'", rfpTitle);
-        RfpExportDTO export = exportService.exportRfp(rfpTitle);
-        return ResponseEntity.ok(export);
+    public ResponseEntity<RfpExportDTO> exportProposal(@PathVariable("rfpTitle") String rfpTitle) {
+        return ResponseEntity.ok(exportService.exportRfp(rfpTitle));
     }
 }

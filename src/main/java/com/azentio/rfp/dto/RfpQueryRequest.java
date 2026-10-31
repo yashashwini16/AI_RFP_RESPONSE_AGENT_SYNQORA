@@ -14,15 +14,20 @@ public class RfpQueryRequest {
     private String question;
 
     @Builder.Default
-    private String rfpTitle = "Azentio Core Banking Proposal 2026";
+    private String rfpTitle = "Qatar Islamic Bank Core Modernization RFP";
 
     @Builder.Default
-    private String clientName = "Tier-1 Enterprise Bank";
+    private String clientName = "Qatar Islamic Bank";
 
     @Builder.Default
-    private String category = "GENERAL";
+    private String sectionName = "Islamic Financing Modules";
 
-    // Optional: if true, only retrieve top matches (Milestone 1), if false, generate agent response (Milestone 2)
+    @Builder.Default
+    private String category = "MURABAHA";
+
+    @Builder.Default
+    private String requirementType = "MANDATORY"; // MANDATORY, OPTIONAL, INFO
+
     @Builder.Default
     private boolean retrievalOnly = false;
 }

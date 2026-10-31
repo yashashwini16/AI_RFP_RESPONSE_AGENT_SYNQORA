@@ -10,6 +10,9 @@ import lombok.*;
 public class HistoricalMatchDTO {
     private Long id;
     private String category;
+    private String sourceType; // PRODUCT_DOC, PAST_SOW, PAST_RFP
+    private String productVersion; // e.g. iMAL v15.0
+    private Boolean isOutdated; // Flag if version < v14.0
     private String question;
     private String approvedAnswer;
     private String sourceDocument;

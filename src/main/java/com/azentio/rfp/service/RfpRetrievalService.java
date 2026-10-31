@@ -19,11 +19,13 @@ public class RfpRetrievalService {
     private final EmbeddingService embeddingService;
 
     /**
-     * Milestone 1 Core Deliverable:
-     * Semantically retrieves the top-K past RFP answers matching the enterprise question.
+     * Semantically retrieves the top-K past answers across the 3 knowledge sources:
+     * 1. Product documentation
+     * 2. Past scopes of work (SOWs)
+     * 3. Past RFP responses
      */
     public List<HistoricalMatchDTO> retrieveTopMatches(String question, int limit) {
-        log.info("Performing PgVector semantic retrieval for question: '{}' (limit: {})", question, limit);
+        log.info("Performing PgVector semantic retrieval for Islamic Banking question: '{}' (limit: {})", question, limit);
 
         try {
             float[] queryEmbedding = embeddingService.getEmbedding(question);
@@ -49,20 +51,24 @@ public class RfpRetrievalService {
 
         for (KnowledgeMatchProjection p : list) {
             double rawScore = p.getSimilarityScore() != null ? p.getSimilarityScore() : 0.0;
-            // Calibrate raw cosine score for enterprise presentation:
-            // High matches (>= 0.28 in hash space or >= 0.70 in neural embeddings) map to 80-97%
             int percentage;
             if (rawScore >= 0.25) {
-                percentage = Math.min(97, (int) Math.round(75 + (rawScore - 0.25) * 160));
+                percentage = Math.min(98, (int) Math.round(75 + (rawScore - 0.25) * 160));
             } else if (rawScore >= 0.15) {
                 percentage = Math.min(74, (int) Math.round(50 + (rawScore - 0.15) * 240));
             } else {
                 percentage = Math.max(10, (int) Math.round(rawScore * 250));
             }
 
+            String ver = p.getProductVersion() != null ? p.getProductVersion() : "iMAL v15.0";
+            boolean isOld = ver.contains("v12") || ver.contains("v13") || ver.contains("2018") || ver.contains("2019");
+
             results.add(HistoricalMatchDTO.builder()
                     .id(p.getId())
                     .category(p.getCategory())
+                    .sourceType(p.getSourceType() != null ? p.getSourceType() : "PRODUCT_DOC")
+                    .productVersion(ver)
+                    .isOutdated(isOld)
                     .question(p.getQuestion())
                     .approvedAnswer(p.getApprovedAnswer())
                     .sourceDocument(p.getSourceDocument())
