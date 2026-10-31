@@ -70,8 +70,17 @@
         </button>
       </nav>
 
-      <!-- Connection Status -->
-      <div class="flex items-center space-x-2">
+      <!-- Connection Status & Actions -->
+      <div class="flex items-center space-x-3">
+        <button 
+          onclick="resetAllRfpData()" 
+          class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 transition"
+          title="Clear all test data and reset the workspace"
+        >
+          <i class="fa-solid fa-arrows-rotate mr-1.5 text-rose-500"></i>
+          <span>Clear / Reset Data</span>
+        </button>
+
         <div id="connectionStatus" class="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span id="backendStatusText">Backend Online (Port 8080)</span>
@@ -135,19 +144,10 @@
           </button>
         </div>
 
-        <!-- Selected File Status Display -->
-        <div class="pt-3 border-t border-slate-100 flex items-center justify-center space-x-2 text-xs text-slate-600">
-          <span>Active Selection:</span>
-          <span id="selectedFileName" class="font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md">
-            QIB_Islamic_Banking_RFP_2026.xlsx
-          </span>
-          <a 
-            href="/QIB_Islamic_Banking_RFP_2026.xlsx" 
-            download 
-            class="inline-flex items-center text-blue-700 hover:text-blue-900 font-semibold underline ml-1"
-          >
-            <i class="fa-solid fa-download mr-1"></i> Download .xlsx
-          </a>
+        <!-- Selected File Status Display (hidden by default) -->
+        <div id="fileSelectionNotice" class="hidden pt-3 border-t border-slate-100 flex items-center justify-center space-x-2 text-xs text-slate-600">
+          <span>Selected File:</span>
+          <span id="selectedFileName" class="font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md"></span>
         </div>
 
       </div>
@@ -220,18 +220,60 @@
               Active RFP: Qatar Islamic Bank Tender
             </span>
           </div>
-          <p class="text-xs text-slate-500 mt-0.5">Showing requirements exclusively parsed from the uploaded RFP. Edit answers, inspect grounding citations, and approve.</p>
+          <p class="text-xs text-slate-500 mt-0.5">Showing requirements exclusively parsed from the uploaded RFP. Automatically classified & routed to specialized desks.</p>
         </div>
 
-        <!-- Filter Buttons -->
-        <div class="flex items-center space-x-2">
-          <span class="text-xs font-medium text-slate-500">Filter:</span>
+        <!-- Filter Controls -->
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Team / Desk Selector -->
+          <div class="flex items-center space-x-1.5 text-xs">
+            <span class="text-slate-500 font-medium">Team:</span>
+            <select id="teamFilterSelect" onchange="filterByTeam(this.value)" class="text-xs font-semibold py-1 px-2.5 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-600">
+              <option value="ALL">🏢 All Teams</option>
+              <option value="PRODUCT_DESK">🏢 Product & Shariah Desk</option>
+              <option value="TECHNICAL_DESK">⚙️ Architecture & Cloud Desk</option>
+              <option value="SECURITY_DESK">🛡️ InfoSec & Audit Desk</option>
+              <option value="INTEGRATION_DESK">🔗 API & FinTech Desk</option>
+              <option value="MIGRATION_DESK">🔄 Migration & Delivery Desk</option>
+              <option value="COMMERCIAL_DESK">⚖️ Commercial & Legal Desk</option>
+            </select>
+          </div>
+
+          <!-- Status Filter Buttons -->
           <div class="inline-flex rounded-lg bg-slate-100 p-1 text-xs">
             <button onclick="filterWorkbench('ALL')" id="filter-btn-all" class="px-3 py-1 font-bold rounded-md bg-white text-slate-800 shadow-sm">All</button>
             <button onclick="filterWorkbench('Fully Addressed')" id="filter-btn-fully" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900">Fully Addressed</button>
             <button onclick="filterWorkbench('Partially Addressed')" id="filter-btn-partial" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900">Partially Addressed</button>
             <button onclick="filterWorkbench('Information Required')" id="filter-btn-info" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900">Clarification Needed</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Functional Team Workload Distribution Bar -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+        <div onclick="selectTeamFilter('PRODUCT_DESK')" class="cursor-pointer bg-blue-50/80 hover:bg-blue-100 p-2.5 rounded-xl border border-blue-200 transition">
+          <span class="text-blue-700 font-medium block text-[11px]">🏢 Product & Shariah</span>
+          <strong id="teamKpiProduct" class="text-sm font-extrabold text-blue-900">0 reqs</strong>
+        </div>
+        <div onclick="selectTeamFilter('TECHNICAL_DESK')" class="cursor-pointer bg-indigo-50/80 hover:bg-indigo-100 p-2.5 rounded-xl border border-indigo-200 transition">
+          <span class="text-indigo-700 font-medium block text-[11px]">⚙️ Architecture & Cloud</span>
+          <strong id="teamKpiTech" class="text-sm font-extrabold text-indigo-900">0 reqs</strong>
+        </div>
+        <div onclick="selectTeamFilter('SECURITY_DESK')" class="cursor-pointer bg-emerald-50/80 hover:bg-emerald-100 p-2.5 rounded-xl border border-emerald-200 transition">
+          <span class="text-emerald-700 font-medium block text-[11px]">🛡️ InfoSec & Audit</span>
+          <strong id="teamKpiSecurity" class="text-sm font-extrabold text-emerald-900">0 reqs</strong>
+        </div>
+        <div onclick="selectTeamFilter('INTEGRATION_DESK')" class="cursor-pointer bg-purple-50/80 hover:bg-purple-100 p-2.5 rounded-xl border border-purple-200 transition">
+          <span class="text-purple-700 font-medium block text-[11px]">🔗 APIs & Integration</span>
+          <strong id="teamKpiIntegration" class="text-sm font-extrabold text-purple-900">0 reqs</strong>
+        </div>
+        <div onclick="selectTeamFilter('MIGRATION_DESK')" class="cursor-pointer bg-amber-50/80 hover:bg-amber-100 p-2.5 rounded-xl border border-amber-200 transition">
+          <span class="text-amber-700 font-medium block text-[11px]">🔄 Data Migration</span>
+          <strong id="teamKpiMigration" class="text-sm font-extrabold text-amber-900">0 reqs</strong>
+        </div>
+        <div onclick="selectTeamFilter('COMMERCIAL_DESK')" class="cursor-pointer bg-rose-50/80 hover:bg-rose-100 p-2.5 rounded-xl border border-rose-200 transition">
+          <span class="text-rose-700 font-medium block text-[11px]">⚖️ Commercial & Legal</span>
+          <strong id="teamKpiCommercial" class="text-sm font-extrabold text-rose-900">0 reqs</strong>
         </div>
       </div>
 
@@ -265,32 +307,39 @@
       </div>
 
       <!-- KPI Summary Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
           <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Total Questions</span>
           <div class="mt-2 flex items-baseline">
-            <span id="kpiTotal" class="text-3xl font-extrabold text-slate-900">0</span>
+            <span id="kpiTotal" class="text-2xl font-extrabold text-slate-900">0</span>
             <span class="ml-2 text-xs text-slate-500">triaged</span>
           </div>
         </div>
-        <div class="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm bg-gradient-to-br from-white to-emerald-50/40">
+        <div class="bg-white p-4 rounded-2xl border border-emerald-100 shadow-sm bg-gradient-to-br from-white to-emerald-50/40">
           <span class="text-xs font-semibold text-emerald-800 uppercase tracking-wider block">Fully Addressed</span>
           <div class="mt-2 flex items-baseline">
-            <span id="kpiFully" class="text-3xl font-extrabold text-emerald-700">0</span>
+            <span id="kpiFully" class="text-2xl font-extrabold text-emerald-700">0</span>
             <span class="ml-2 text-xs text-emerald-600 font-medium">high confidence</span>
           </div>
         </div>
-        <div class="bg-white p-5 rounded-2xl border border-amber-100 shadow-sm bg-gradient-to-br from-white to-amber-50/40">
+        <div class="bg-white p-4 rounded-2xl border border-amber-100 shadow-sm bg-gradient-to-br from-white to-amber-50/40">
           <span class="text-xs font-semibold text-amber-800 uppercase tracking-wider block">Guardrails / Partial</span>
           <div class="mt-2 flex items-baseline">
-            <span id="kpiPartial" class="text-3xl font-extrabold text-amber-700">0</span>
+            <span id="kpiPartial" class="text-2xl font-extrabold text-amber-700">0</span>
             <span class="ml-2 text-xs text-amber-600 font-medium">routed to desks</span>
           </div>
         </div>
-        <div class="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm bg-gradient-to-br from-white to-blue-50/40">
+        <div class="bg-white p-4 rounded-2xl border border-rose-100 shadow-sm bg-gradient-to-br from-white to-rose-50/40">
+          <span class="text-xs font-semibold text-rose-800 uppercase tracking-wider block">Customer Queries</span>
+          <div class="mt-2 flex items-baseline">
+            <span id="kpiClarifications" class="text-2xl font-extrabold text-rose-700">0</span>
+            <span class="ml-2 text-xs text-rose-600 font-medium">clarification</span>
+          </div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-blue-100 shadow-sm bg-gradient-to-br from-white to-blue-50/40">
           <span class="text-xs font-semibold text-blue-800 uppercase tracking-wider block">SE Approved</span>
           <div class="mt-2 flex items-baseline">
-            <span id="kpiApproved" class="text-3xl font-extrabold text-blue-700">0</span>
+            <span id="kpiApproved" class="text-2xl font-extrabold text-blue-700">0</span>
             <span class="ml-2 text-xs text-blue-600 font-medium">ready to submit</span>
           </div>
         </div>
@@ -322,11 +371,13 @@
     let allQueries = [];
     let selectedFile = null;
     let currentFilter = 'ALL';
-    let currentDocumentId = null;
+    let currentTeamFilter = 'ALL';
+    let currentDocumentId = localStorage.getItem('azentio_active_doc_id') || null;
 
     window.addEventListener('DOMContentLoaded', () => {
       checkHealth();
-      fetchQueries();
+      fetchQueries(currentDocumentId);
+      fetchClarifications(currentDocumentId);
     });
 
     // Tab Switching Logic
@@ -343,10 +394,10 @@
         }
       });
       if (tabId === 'workbench') {
-        fetchQueries();
+        fetchQueries(currentDocumentId);
       }
       if (tabId === 'export') {
-        fetchClarifications();
+        fetchClarifications(currentDocumentId);
       }
     }
 
@@ -373,7 +424,10 @@
     function handleFileSelect(e) {
       if (e.target.files && e.target.files[0]) {
         selectedFile = e.target.files[0];
-        document.getElementById('selectedFileName').textContent = `${selectedFile.name} (${Math.round(selectedFile.size / 1024)} KB)`;
+        const notice = document.getElementById('fileSelectionNotice');
+        if (notice) notice.classList.remove('hidden');
+        const nameEl = document.getElementById('selectedFileName');
+        if (nameEl) nameEl.textContent = `${selectedFile.name} (${Math.round(selectedFile.size / 1024)} KB)`;
         showToast('File Selected', `Ready to ingest ${selectedFile.name}`);
       }
     }
@@ -401,13 +455,21 @@
 
         if (res.ok) {
           const data = await res.json();
+          if (data.status === 'REJECTED') {
+            showToast('Document Rejected', data.message || 'Validation failed: Non-RFP document rejected.', false);
+            return;
+          }
           currentDocumentId = data.documentId || null;
+          if (currentDocumentId) {
+            localStorage.setItem('azentio_active_doc_id', currentDocumentId);
+          }
           showToast('RFP Ingested!', data.message || 'Requirements extracted successfully.');
           document.getElementById('ingestionSummaryCard').classList.remove('hidden');
           document.getElementById('summaryBadgeCount').textContent = `${data.extractedCount || 6} Requirements Extracted`;
           if (data.clientName) document.getElementById('summaryClientName').textContent = data.clientName;
-          document.getElementById('activeTenderBadge').textContent = `Active RFP: ${data.rfpTitle || 'Qatar Islamic Bank Tender'}`;
+          document.getElementById('activeTenderBadge').textContent = `Active RFP: ${data.rfpTitle || 'Islamic Banking Tender'}`;
           await fetchQueries(currentDocumentId);
+          await fetchClarifications(currentDocumentId);
         } else {
           await loadDemoBenchmark();
         }
@@ -424,11 +486,19 @@
         const res = await fetch(`${API_BASE}/load-sample-rfp`, { method: 'POST' });
         if (res.ok) {
           const data = await res.json();
+          if (data.status === 'REJECTED') {
+            showToast('Document Rejected', data.message || 'Validation failed: Non-RFP document rejected.', false);
+            return;
+          }
           currentDocumentId = data.documentId || null;
+          if (currentDocumentId) {
+            localStorage.setItem('azentio_active_doc_id', currentDocumentId);
+          }
           showToast('Benchmark Loaded', 'Loaded QIB RFP with 6 structured requirements.');
           document.getElementById('ingestionSummaryCard').classList.remove('hidden');
           document.getElementById('activeTenderBadge').textContent = `Active RFP: ${data.rfpTitle || 'Qatar Islamic Bank Tender'}`;
           await fetchQueries(currentDocumentId);
+          await fetchClarifications(currentDocumentId);
         }
       } catch (err) {
         showToast('Load Failed', err.message, false);
@@ -466,12 +536,43 @@
       const total = allQueries.length;
       const fully = allQueries.filter(q => q.responseClassification === 'Fully Addressed').length;
       const partial = allQueries.filter(q => q.responseClassification === 'Partially Addressed').length;
+      const clarifications = allQueries.filter(q => q.responseClassification === 'Information Required').length;
       const approved = allQueries.filter(q => q.status === 'APPROVED').length;
 
-      document.getElementById('kpiTotal').textContent = total;
-      document.getElementById('kpiFully').textContent = fully;
-      document.getElementById('kpiPartial').textContent = partial;
-      document.getElementById('kpiApproved').textContent = approved;
+      if (document.getElementById('kpiTotal')) document.getElementById('kpiTotal').textContent = total;
+      if (document.getElementById('kpiFully')) document.getElementById('kpiFully').textContent = fully;
+      if (document.getElementById('kpiPartial')) document.getElementById('kpiPartial').textContent = partial;
+      if (document.getElementById('kpiClarifications')) document.getElementById('kpiClarifications').textContent = clarifications;
+      if (document.getElementById('kpiApproved')) document.getElementById('kpiApproved').textContent = approved;
+
+      // Functional Team Breakdown Counters
+      const countProduct = allQueries.filter(q => (q.assignedOwner || 'PRODUCT_DESK') === 'PRODUCT_DESK').length;
+      const countTech = allQueries.filter(q => q.assignedOwner === 'TECHNICAL_DESK').length;
+      const countSecurity = allQueries.filter(q => q.assignedOwner === 'SECURITY_DESK').length;
+      const countIntegration = allQueries.filter(q => q.assignedOwner === 'INTEGRATION_DESK').length;
+      const countMigration = allQueries.filter(q => q.assignedOwner === 'MIGRATION_DESK').length;
+      const countCommercial = allQueries.filter(q => q.assignedOwner === 'COMMERCIAL_DESK' || q.assignedOwner === 'LEGAL_DESK').length;
+
+      if (document.getElementById('teamKpiProduct')) document.getElementById('teamKpiProduct').textContent = `${countProduct} reqs`;
+      if (document.getElementById('teamKpiTech')) document.getElementById('teamKpiTech').textContent = `${countTech} reqs`;
+      if (document.getElementById('teamKpiSecurity')) document.getElementById('teamKpiSecurity').textContent = `${countSecurity} reqs`;
+      if (document.getElementById('teamKpiIntegration')) document.getElementById('teamKpiIntegration').textContent = `${countIntegration} reqs`;
+      if (document.getElementById('teamKpiMigration')) document.getElementById('teamKpiMigration').textContent = `${countMigration} reqs`;
+      if (document.getElementById('teamKpiCommercial')) document.getElementById('teamKpiCommercial').textContent = `${countCommercial} reqs`;
+    }
+
+    function filterByTeam(team) {
+      currentTeamFilter = team;
+      const sel = document.getElementById('teamFilterSelect');
+      if (sel) sel.value = team;
+      renderRequirementsWorkbench();
+    }
+
+    function selectTeamFilter(team) {
+      currentTeamFilter = (currentTeamFilter === team) ? 'ALL' : team;
+      const sel = document.getElementById('teamFilterSelect');
+      if (sel) sel.value = currentTeamFilter;
+      renderRequirementsWorkbench();
     }
 
     function filterWorkbench(type) {
@@ -490,15 +591,25 @@
 
     function renderRequirementsWorkbench() {
       const container = document.getElementById('requirementsList');
-      const filtered = currentFilter === 'ALL' 
-        ? allQueries 
-        : allQueries.filter(q => q.responseClassification === currentFilter);
+      let filtered = allQueries;
+      if (currentFilter !== 'ALL') {
+        filtered = filtered.filter(q => q.responseClassification === currentFilter);
+      }
+      if (currentTeamFilter !== 'ALL') {
+        filtered = filtered.filter(q => {
+          const owner = q.assignedOwner || 'PRODUCT_DESK';
+          if (currentTeamFilter === 'COMMERCIAL_DESK') {
+            return owner === 'COMMERCIAL_DESK' || owner === 'LEGAL_DESK';
+          }
+          return owner === currentTeamFilter;
+        });
+      }
 
       if (filtered.length === 0) {
         container.innerHTML = `
           <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">
             <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i>
-            <p class="text-sm font-medium">No requirements match the selected filter.</p>
+            <p class="text-sm font-medium">No requirements match the selected team / status filters.</p>
           </div>
         `;
         return;
@@ -520,10 +631,16 @@
             
             <!-- Top Attribute Badges -->
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <div class="flex items-center space-x-2">
+              <div class="flex flex-wrap items-center gap-2">
                 <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-900 text-white font-mono">
                   ${item.requirementId || 'REQ-' + item.queryId}
                 </span>
+
+                <!-- Team / Desk Routing Badge -->
+                <span class="px-2.5 py-0.5 rounded text-xs font-bold border ${getTeamBadgeColor(item.assignedOwner)}">
+                  <i class="${getTeamIcon(item.assignedOwner)} mr-1"></i>${getTeamLabel(item.assignedOwner)}
+                </span>
+
                 <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   ${item.sectionName || 'General'}
                 </span>
@@ -578,17 +695,42 @@
             </div>
 
             <!-- Card Actions -->
-            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
-              <button 
-                onclick="toggleCitations(${item.queryId})"
-                class="text-xs font-semibold text-blue-700 hover:text-blue-900 inline-flex items-center"
-              >
-                <i class="fa-solid fa-book-bookmark mr-1.5"></i>
-                <span>Grounded Citations (${citations.length} sources)</span>
-                <i id="citation-chevron-${item.queryId}" class="fa-solid fa-chevron-down ml-1 text-[10px]"></i>
-              </button>
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+              <div class="flex flex-wrap items-center gap-3">
+                <button 
+                  onclick="toggleCitations(${item.queryId})"
+                  class="text-xs font-semibold text-blue-700 hover:text-blue-900 inline-flex items-center"
+                >
+                  <i class="fa-solid fa-book-bookmark mr-1.5"></i>
+                  <span>Grounded Citations (${citations.length} sources)</span>
+                  <i id="citation-chevron-${item.queryId}" class="fa-solid fa-chevron-down ml-1 text-[10px]"></i>
+                </button>
 
-              <div>
+                <!-- SE Classification Dropdown -->
+                <div class="flex items-center space-x-1.5 text-xs">
+                  <span class="text-slate-500 font-medium">Classify:</span>
+                  <select 
+                    onchange="updateQueryClassification(${item.queryId}, this.value)" 
+                    class="text-xs font-semibold py-1 px-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:border-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                  >
+                    <option value="Fully Addressed" ${classification === 'Fully Addressed' ? 'selected' : ''}>✅ Fully Addressed</option>
+                    <option value="Partially Addressed" ${classification === 'Partially Addressed' ? 'selected' : ''}>⚠️ Partially Addressed</option>
+                    <option value="Information Required" ${classification === 'Information Required' ? 'selected' : ''}>❓ Clarification Needed</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="flex items-center space-x-2">
+                <!-- Move to Clarification List Button -->
+                <button 
+                  onclick="flagForClarification(${item.queryId}, '${escapeHtml(item.requirementId || 'REQ-' + item.queryId)}')"
+                  class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold ${classification === 'Information Required' ? 'bg-rose-100 text-rose-800 border border-rose-300' : 'bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-900 border border-slate-200'} transition"
+                  title="Move this requirement to the Customer Clarification Query List"
+                >
+                  <i class="fa-solid fa-circle-question mr-1.5 text-amber-500"></i>
+                  <span>${classification === 'Information Required' ? 'In Clarification List' : 'Move to Clarification List'}</span>
+                </button>
+
                 ${isApproved ? `
                   <button 
                     onclick="approveResponse(${item.responseId || item.queryId})"
@@ -662,31 +804,180 @@
       }
     }
 
-    async function fetchClarifications() {
+    async function flagForClarification(queryId, reqId) {
+      const reason = prompt(
+        `Move requirement [${reqId}] to Customer Clarification List:\nEnter clarification note or bank question:`,
+        "Sales Engineering: Clarification required on specific bank operating parameters, interfaces, and Shariah governance workflow."
+      );
+      if (reason === null) return; // User cancelled
+
       try {
-        const res = await fetch(`${API_BASE}/clarifications`);
+        const url = `${API_BASE}/clarifications/add?queryId=${queryId}&reason=${encodeURIComponent(reason)}`;
+        const res = await fetch(url, { method: 'POST' });
+        if (res.ok) {
+          showToast('Requirement Flagged', `[${reqId}] moved to Customer Clarification Query List.`);
+          await fetchQueries();
+          await fetchClarifications();
+        } else {
+          showToast('Failed to flag', 'Server error while moving to clarification list.', false);
+        }
+      } catch (err) {
+        showToast('Error', err.message, false);
+      }
+    }
+
+    async function updateQueryClassification(queryId, newClassification) {
+      try {
+        const url = `${API_BASE}/queries/${queryId}/classify?classification=${encodeURIComponent(newClassification)}`;
+        const res = await fetch(url, { method: 'POST' });
+        if (res.ok) {
+          showToast('Classification Updated', `Requirement set to ${newClassification}`);
+          await fetchQueries();
+          await fetchClarifications();
+        }
+      } catch (err) {
+        showToast('Update Failed', err.message, false);
+      }
+    }
+
+    async function resolveClarification(id) {
+      if (!confirm('Resolve and remove this clarification item from the bank query register?')) return;
+      try {
+        const res = await fetch(`${API_BASE}/clarifications/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast('Clarification Resolved', 'Item removed from customer clarification register.');
+          await fetchClarifications();
+          await fetchQueries();
+        }
+      } catch (err) {
+        showToast('Error', err.message, false);
+      }
+    }
+
+    async function fetchClarifications(docId = currentDocumentId) {
+      try {
+        const url = (docId && docId !== 'null') ? `${API_BASE}/clarifications?documentId=${docId}` : `${API_BASE}/clarifications`;
+        const res = await fetch(url);
         if (res.ok) {
           const list = await res.json();
           const container = document.getElementById('clarificationsContainer');
-          if (list.length === 0) {
-            container.innerHTML = `<p class="text-xs text-slate-400 italic">No outstanding clarification queries logged.</p>`;
+          if (!list || list.length === 0) {
+            container.innerHTML = `
+              <div class="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400">
+                <i class="fa-solid fa-circle-check text-2xl text-emerald-400 mb-2"></i>
+                <p class="text-xs font-semibold text-slate-600">No outstanding clarification queries logged for this tender.</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Use the "Move to Clarification List" button on any requirement in the SE Review Workbench to log an item here.</p>
+              </div>
+            `;
           } else {
             container.innerHTML = list.map(c => `
-              <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
+              <div class="p-4 rounded-xl border border-amber-200 bg-amber-50/40 hover:bg-white transition space-y-2.5 shadow-xs">
                 <div class="flex items-center justify-between text-xs">
-                  <span class="font-bold text-slate-800">${escapeHtml(c.rfpTitle || 'RFP')}</span>
-                  <span class="px-2 py-0.5 rounded font-semibold bg-rose-100 text-rose-800">${c.status || 'LOGGED'}</span>
+                  <div class="flex items-center space-x-2">
+                    <span class="px-2.5 py-0.5 rounded font-mono font-bold bg-amber-200 text-amber-900 border border-amber-300">
+                      ${escapeHtml(c.requirementId || 'CLAR-' + c.id)}
+                    </span>
+                    <span class="font-semibold text-slate-700">${escapeHtml(c.sectionName || 'Islamic Banking')}</span>
+                    <span class="text-slate-400">•</span>
+                    <span class="text-slate-500 text-[11px]">${escapeHtml(c.rfpTitle || 'RFP Tender')}</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                      ${c.status || 'PENDING CUSTOMER FEEDBACK'}
+                    </span>
+                    <button onclick="resolveClarification(${c.id})" class="text-slate-400 hover:text-rose-600 transition px-1" title="Resolve / Remove from List">
+                      <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                  </div>
                 </div>
-                <div class="text-xs font-semibold text-slate-900">${escapeHtml(c.questionToCustomer || '')}</div>
-                <div class="text-[11px] text-slate-600 bg-white p-2.5 rounded-lg border border-slate-200">
-                  <span class="font-bold text-slate-700">Reason:</span> ${escapeHtml(c.reason || 'Insufficient documentation grounded')}
+
+                <div class="text-xs font-bold text-slate-900 leading-snug">
+                  <i class="fa-solid fa-file-lines text-slate-400 mr-1.5"></i>
+                  ${escapeHtml(c.questionText || '')}
+                </div>
+
+                <div class="bg-white p-3 rounded-lg border border-slate-200 text-xs space-y-2">
+                  <div class="flex items-start space-x-2">
+                    <span class="font-bold text-amber-800 shrink-0"><i class="fa-solid fa-question mr-1"></i> Clarification to Bank:</span>
+                    <span class="text-slate-800 leading-relaxed font-medium">${escapeHtml(c.clarificationNeeded || '')}</span>
+                  </div>
+                  <div class="flex items-start space-x-2 pt-2 border-t border-slate-100">
+                    <span class="font-bold text-slate-500 shrink-0"><i class="fa-solid fa-shield-halved mr-1"></i> Technical & Shariah Justification:</span>
+                    <span class="text-slate-600 italic leading-relaxed">${escapeHtml(c.reasonJustification || '')}</span>
+                  </div>
                 </div>
               </div>
             `).join('');
           }
         }
       } catch (err) {
-        console.error(err);
+        console.error('Failed to fetch clarifications:', err);
+      }
+    }
+
+    async function resetAllRfpData() {
+      if (!confirm('This will permanently clear all uploaded tenders, triaged responses, and customer clarification registers. You can then upload a new RFP fresh. Continue?')) {
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/reset`, { method: 'POST' });
+        if (res.ok) {
+          localStorage.removeItem('azentio_active_doc_id');
+          currentDocumentId = null;
+          allQueries = [];
+          showToast('Workspace Reset', 'All RFP tenders and data cleared successfully.');
+          document.getElementById('ingestionSummaryCard').classList.add('hidden');
+          const notice = document.getElementById('fileSelectionNotice');
+          if (notice) notice.classList.add('hidden');
+          document.getElementById('rfpFileInput').value = '';
+          selectedFile = null;
+          updateKpis();
+          renderRequirementsWorkbench();
+          await fetchClarifications(null);
+          switchTab('upload');
+        } else {
+          showToast('Reset Failed', 'Server error while resetting data.', false);
+        }
+      } catch (err) {
+        showToast('Error', err.message, false);
+      }
+    }
+
+    function getTeamLabel(owner) {
+      if (!owner) return 'Product & Shariah';
+      switch(owner) {
+        case 'PRODUCT_DESK': return 'Product & Shariah';
+        case 'TECHNICAL_DESK': return 'Architecture & Cloud';
+        case 'SECURITY_DESK': return 'InfoSec & Audit';
+        case 'INTEGRATION_DESK': return 'APIs & Integration';
+        case 'MIGRATION_DESK': return 'Data Migration';
+        case 'COMMERCIAL_DESK': return 'Commercial Pricing';
+        case 'LEGAL_DESK': return 'Legal Counsel';
+        default: return owner.replace('_', ' ');
+      }
+    }
+
+    function getTeamBadgeColor(owner) {
+      switch(owner) {
+        case 'TECHNICAL_DESK': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+        case 'SECURITY_DESK': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        case 'INTEGRATION_DESK': return 'bg-purple-50 text-purple-700 border-purple-200';
+        case 'MIGRATION_DESK': return 'bg-amber-50 text-amber-700 border-amber-200';
+        case 'COMMERCIAL_DESK':
+        case 'LEGAL_DESK': return 'bg-rose-50 text-rose-700 border-rose-200';
+        default: return 'bg-blue-50 text-blue-700 border-blue-200';
+      }
+    }
+
+    function getTeamIcon(owner) {
+      switch(owner) {
+        case 'TECHNICAL_DESK': return 'fa-solid fa-server';
+        case 'SECURITY_DESK': return 'fa-solid fa-shield-halved';
+        case 'INTEGRATION_DESK': return 'fa-solid fa-network-wired';
+        case 'MIGRATION_DESK': return 'fa-solid fa-database';
+        case 'COMMERCIAL_DESK':
+        case 'LEGAL_DESK': return 'fa-solid fa-scale-balanced';
+        default: return 'fa-solid fa-building-columns';
       }
     }
 

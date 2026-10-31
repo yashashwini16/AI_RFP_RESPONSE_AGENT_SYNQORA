@@ -100,6 +100,11 @@ public class RfpAgentService {
         // 4. Commercial & Legal Guardrail Evaluation
         RfpGuardrailService.GuardrailResult guardrail = guardrailService.evaluateGuardrails(request.getQuestion());
 
+        // 4b. Intelligent Team / Desk Routing
+        String assignedDesk = guardrail.isTriggered() 
+                ? guardrail.assignedOwner() 
+                : resolveAssignedDesk(request.getCategory(), request.getSectionName(), request.getQuestion());
+
         // 5. Persist Query
         RfpQuery query = RfpQuery.builder()
                 .documentId(request.getDocumentId())
@@ -114,7 +119,7 @@ public class RfpAgentService {
                 .isDuplicate(isDuplicate)
                 .duplicateOfId(duplicateOfId)
                 .guardrailFlag(guardrail.guardrailFlag())
-                .assignedOwner(guardrail.assignedOwner())
+                .assignedOwner(assignedDesk)
                 .status("PENDING")
                 .build();
         query = queryRepository.save(query);
@@ -173,7 +178,7 @@ public class RfpAgentService {
             draftedAnswer = "⚠️ INFORMATION REQUIRED: Supporting organisational knowledge is insufficient to answer this requirement with high confidence ("
                     + topScore + "%). This item has been added to the Clarification Queries list for the customer.";
 
-            clarificationService.registerClarificationQuery(query.getId(), query.getQuestionText(), query.getSectionName());
+            clarificationService.registerClarificationQuery(query.getId(), query.getQuestionText(), query.getSectionName(), query.getDocumentId());
         } else if (topScore >= 80) {
             status = "DRAFTED";
             responseClassification = "Fully Addressed";
@@ -321,6 +326,65 @@ public class RfpAgentService {
         return "EXPLANATION";
     }
 
+    public String resolveAssignedDesk(String category, String sectionName, String questionText) {
+        String combined = ((category != null ? category : "") + " " 
+                + (sectionName != null ? sectionName : "") + " " 
+                + (questionText != null ? questionText : "")).toLowerCase();
+
+        // 1. Commercial Pricing Desk
+        if (combined.contains("price") || combined.contains("pricing") || combined.contains("cost") 
+                || combined.contains("fee") || combined.contains("rate card") || combined.contains("tco") 
+                || combined.contains("license fee") || combined.contains("quotation")) {
+            return "COMMERCIAL_DESK";
+        }
+
+        // 2. Legal & Contracts Counsel
+        if (combined.contains("liability") || combined.contains("indemnity") || combined.contains("penalty") 
+                || combined.contains("liquidated damages") || combined.contains("warranty") 
+                || combined.contains("governing law") || combined.contains("sla commitment") 
+                || combined.contains("jurisdiction")) {
+            return "LEGAL_DESK";
+        }
+
+        // 3. Information Security & InfoSec Desk
+        if (combined.contains("security") || combined.contains("encryption") || combined.contains("key management") 
+                || combined.contains("hsm") || combined.contains("rbac") || combined.contains("segregation of duties") 
+                || combined.contains("access control") || combined.contains("audit trail") 
+                || combined.contains("vulnerability") || combined.contains("privileged access") 
+                || combined.contains("incident response")) {
+            return "SECURITY_DESK";
+        }
+
+        // 4. Enterprise Technical Architecture & Cloud Desk
+        if (combined.contains("resilience") || combined.contains("backup") || combined.contains("disaster") 
+                || combined.contains("rpo") || combined.contains("rto") || combined.contains("deployment") 
+                || combined.contains("infrastructure") || combined.contains("architecture") || combined.contains("sizing") 
+                || combined.contains("openshift") || combined.contains("active-active") || combined.contains("performance") 
+                || combined.contains("latency") || combined.contains("throughput") || combined.contains("tps") 
+                || combined.contains("monitoring") || combined.contains("prerequisites") || combined.contains("scalability") 
+                || combined.contains("high availability")) {
+            return "TECHNICAL_DESK";
+        }
+
+        // 5. API & External Integration Desk
+        if (combined.contains("api") || combined.contains("integration") || combined.contains("rest") 
+                || combined.contains("interface") || combined.contains("channel") || combined.contains("swift") 
+                || combined.contains("broker") || combined.contains("gateway") || combined.contains("connector") 
+                || combined.contains("adapter")) {
+            return "INTEGRATION_DESK";
+        }
+
+        // 6. Data Migration & Cutover Desk
+        if (combined.contains("migration") || combined.contains("cleansing") || combined.contains("reconciliation") 
+                || combined.contains("cutover") || combined.contains("conversion") || combined.contains("legacy data") 
+                || combined.contains("profiling") || combined.contains("rehearsal")) {
+            return "MIGRATION_DESK";
+        }
+
+        // 7. Core Islamic Banking & Shariah Product Desk (Default for functional Islamic modules)
+        return "PRODUCT_DESK";
+    }
+
     private String getCategoryPrefix(String category) {
         if (category == null) return "REQ";
         return switch (category.toUpperCase()) {
@@ -389,6 +453,16 @@ public class RfpAgentService {
                 .latencyMs(latency)
                 .modelUsed(model)
                 .build();
+    }
+
+    @Transactional
+    public void resetAllRfpData() {
+        log.warn("Executing complete reset of all RFP uploaded tenders and triaged records");
+        auditLogRepository.deleteAll();
+        responseRepository.deleteAll();
+        clarificationService.deleteAll();
+        queryRepository.deleteAll();
+        documentRepository.deleteAll();
     }
 
     private List<HistoricalMatchDTO> parseCitations(String json) {

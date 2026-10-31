@@ -9,5 +9,7 @@ import java.util.List;
 @Repository
 public interface RfpClarificationRepository extends JpaRepository<RfpClarification, Long> {
     List<RfpClarification> findAllByOrderByIdAsc();
+    List<RfpClarification> findByDocumentIdOrderByIdAsc(Long documentId);
     void deleteByQueryId(Long queryId);
+    boolean existsByQueryId(Long queryId);
 }

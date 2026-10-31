@@ -1,7 +1,9 @@
 package com.azentio.rfp.service;
 
 import com.azentio.rfp.dto.RfpQueryRequest;
+import com.azentio.rfp.model.RfpClarification;
 import com.azentio.rfp.model.RfpDocument;
+import com.azentio.rfp.repository.RfpClarificationRepository;
 import com.azentio.rfp.repository.RfpDocumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,7 @@ import java.util.zip.ZipInputStream;
 public class RfpParserService {
 
     private final RfpDocumentRepository documentRepository;
+    private final RfpClarificationRepository clarificationRepository;
     private final RfpAgentService agentService;
 
     /**
@@ -52,11 +55,23 @@ public class RfpParserService {
         List<RfpQueryRequest> extracted = new ArrayList<>();
 
         if (file != null && !file.isEmpty()) {
+            String lower = filename.toLowerCase();
+            // Validate allowed extensions
+            if (!lower.endsWith(".docx") && !lower.endsWith(".xlsx") && !lower.endsWith(".xls") 
+                    && !lower.endsWith(".csv") && !lower.endsWith(".pdf")) {
+                documentRepository.delete(doc);
+                Map<String, Object> err = new HashMap<>();
+                err.put("status", "REJECTED");
+                err.put("filename", filename);
+                err.put("message", "Validation Failed: File format not supported. Only RFP documents in Word (.docx), Excel (.xlsx), CSV, or PDF format are accepted.");
+                return err;
+            }
+
             try {
                 byte[] bytes = file.getBytes();
                 
                 // 1. Check if DOCX (Word Document)
-                if (filename.toLowerCase().endsWith(".docx")) {
+                if (lower.endsWith(".docx")) {
                     extracted = parseDocxFile(bytes, doc);
                     if (!extracted.isEmpty()) {
                         resolvedTitle = doc.getRfpTitle();
@@ -64,7 +79,7 @@ public class RfpParserService {
                     }
                 }
                 // 2. Check if CSV
-                else if (filename.toLowerCase().endsWith(".csv")) {
+                else if (lower.endsWith(".csv")) {
                     String content = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
                     String[] lines = content.split("\r?\n");
                     for (int i = 1; i < lines.length; i++) {
@@ -94,12 +109,20 @@ public class RfpParserService {
                     }
                 }
             } catch (Exception e) {
-                log.warn("Binary or structured parsing fallback for {}: {}", filename, e.getMessage());
+                log.warn("Binary or structured parsing error for {}: {}", filename, e.getMessage());
             }
-        }
 
-        // If file is binary XLSX/PDF or empty, extract the benchmark requirements structured for the uploaded tender:
-        if (extracted.isEmpty()) {
+            // If an actual file was uploaded but NO requirements or questionnaires were found, REJECT it!
+            if (extracted.isEmpty()) {
+                documentRepository.delete(doc);
+                Map<String, Object> err = new HashMap<>();
+                err.put("status", "REJECTED");
+                err.put("filename", filename);
+                err.put("message", "Validation Failed: The uploaded document '" + filename + "' does not contain an RFP questionnaire or requirement evaluation matrix. Non-RFP documents are rejected.");
+                return err;
+            }
+        } else {
+            // Only when user clicks "Load Demo QIB Tender" (file is null):
             extracted = List.of(
                     RfpQueryRequest.builder()
                             .documentId(doc.getId())
@@ -221,7 +244,7 @@ public class RfpParserService {
                         documentRepository.save(doc);
                     }
 
-                    // Process all tables to find requirements and questions
+                    // Process all tables to find requirements, questions, and clarification registers
                     for (int t = 0; t < tables.getLength(); t++) {
                         Element tbl = (Element) tables.item(t);
                         NodeList rows = tbl.getElementsByTagName("w:tr");
@@ -230,6 +253,51 @@ public class RfpParserService {
                         Element headerRow = (Element) rows.item(0);
                         List<String> headerCols = getRowCells(headerRow);
 
+                        // Check if this is Appendix C: Clarification & Assumption Register table
+                        boolean isClarificationTable = headerCols.stream().anyMatch(h -> 
+                            h.toLowerCase().contains("clarification") || h.toLowerCase().contains("assumption"));
+
+                        if (isClarificationTable) {
+                            int idIdx = -1, topicIdx = -1, clarifIdx = -1, assumpIdx = -1;
+                            for (int c = 0; c < headerCols.size(); c++) {
+                                String col = headerCols.get(c).toLowerCase();
+                                if (col.equals("id")) idIdx = c;
+                                else if (col.contains("topic") || col.contains("area")) topicIdx = c;
+                                else if (col.contains("clarification") || col.contains("question")) clarifIdx = c;
+                                else if (col.contains("assumption") || col.contains("justification")) assumpIdx = c;
+                            }
+
+                            if (idIdx != -1 && clarifIdx != -1) {
+                                for (int r = 1; r < rows.getLength(); r++) {
+                                    Element row = (Element) rows.item(r);
+                                    List<String> cells = getRowCells(row);
+                                    if (cells.size() > Math.max(idIdx, clarifIdx)) {
+                                        String id = cells.get(idIdx).trim();
+                                        String topic = (topicIdx != -1 && cells.size() > topicIdx) ? cells.get(topicIdx).trim() : "General";
+                                        String clarif = cells.get(clarifIdx).trim();
+                                        String assump = (assumpIdx != -1 && cells.size() > assumpIdx) ? cells.get(assumpIdx).trim() : "Azentio iMAL standard compliance assumption";
+
+                                        if (!id.isBlank() && !clarif.isBlank() && !id.equalsIgnoreCase("id")) {
+                                            RfpClarification clarification = RfpClarification.builder()
+                                                    .documentId(doc.getId())
+                                                    .requirementId(id)
+                                                    .sectionName("Appendix C: Clarifications & Assumptions (" + topic + ")")
+                                                    .rfpTitle(doc.getRfpTitle())
+                                                    .questionText(topic + ": " + clarif)
+                                                    .clarificationNeeded(clarif)
+                                                    .reasonJustification(assump)
+                                                    .status("ACTIVE_REGISTER")
+                                                    .build();
+                                            clarificationRepository.save(clarification);
+                                            log.info("Extracted Appendix C Clarification: {} - {} (docId: {})", id, topic, doc.getId());
+                                        }
+                                    }
+                                }
+                            }
+                            continue; // Do not treat as requirement questionnaire
+                        }
+
+                        // Otherwise, parse standard requirements & vendor questionnaires
                         int idIdx = -1, areaIdx = -1, reqIdx = -1, prioIdx = -1;
                         for (int c = 0; c < headerCols.size(); c++) {
                             String col = headerCols.get(c).toLowerCase();
@@ -306,7 +374,33 @@ public class RfpParserService {
      * Level 1: Default Ingestion for Qatar Islamic Bank RFP
      */
     public RfpDocument loadSampleIslamicBankingRfp() {
-        parseUploadedRfp(null, "Qatar Islamic Bank Core Modernization & Islamic Lending RFP", "Qatar Islamic Bank");
+        Map<String, Object> parseRes = parseUploadedRfp(null, "Qatar Islamic Bank Core Modernization & Islamic Lending RFP", "Qatar Islamic Bank");
+        Long docId = (Long) parseRes.get("documentId");
+        
+        if (docId != null && clarificationRepository.findByDocumentIdOrderByIdAsc(docId).isEmpty()) {
+            clarificationRepository.save(RfpClarification.builder()
+                    .documentId(docId)
+                    .requirementId("QIB-CLAR-01")
+                    .sectionName("Section 1: Murabaha Trading Engine")
+                    .rfpTitle("Qatar Islamic Bank Core Modernization & Islamic Lending RFP")
+                    .questionText("Commodity Trading Broker Connectivity: Specify whether direct FIX gateway to Bursa Suq Al-Sila is required or DMCC Tradeflow API.")
+                    .clarificationNeeded("Qatar Islamic Bank parameter specification: Confirmation of primary commodity trading venue and gateway interface.")
+                    .reasonJustification("Azentio iMAL supports native pre-built connectors to both Bursa Malaysia Suq Al-Sila and DMCC Tradeflow; protocol confirmation ensures exact latency SLAs.")
+                    .status("PENDING_CUSTOMER_FEEDBACK")
+                    .build());
+
+            clarificationRepository.save(RfpClarification.builder()
+                    .documentId(docId)
+                    .requirementId("QIB-CLAR-02")
+                    .sectionName("Section 3: Architecture & Disaster Recovery")
+                    .rfpTitle("Qatar Islamic Bank Core Modernization & Islamic Lending RFP")
+                    .questionText("Disaster Recovery RPO/RTO: Confirm network latency between primary data center in Doha and DR site.")
+                    .clarificationNeeded("Confirm latency and dark-fiber connectivity bandwidth between primary and DR sites for synchronous DB replication.")
+                    .reasonJustification("Guaranteed RPO < 5 minutes requires synchronous database replication with round-trip latency under 10ms.")
+                    .status("PENDING_CUSTOMER_FEEDBACK")
+                    .build());
+        }
+
         return documentRepository.findAll().stream().reduce((first, second) -> second).orElse(null);
     }
 }

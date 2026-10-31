@@ -82,8 +82,52 @@ public class RfpController {
      * Capability 5: Consolidated Customer Clarification Queries (Workflow 5)
      */
     @GetMapping("/clarifications")
-    public ResponseEntity<List<ClarificationItemDTO>> getClarificationList() {
-        return ResponseEntity.ok(clarificationService.getAllClarifications());
+    public ResponseEntity<List<ClarificationItemDTO>> getClarificationList(
+            @RequestParam(value = "documentId", required = false) Long documentId) {
+        return ResponseEntity.ok(clarificationService.getAllClarifications(documentId));
+    }
+
+    /**
+     * Clear / Reset all uploaded RFPs and triaged data
+     */
+    @PostMapping("/reset")
+    public ResponseEntity<Map<String, String>> resetAllData() {
+        log.warn("REST endpoint /reset triggered - wiping all tender data");
+        agentService.resetAllRfpData();
+        return ResponseEntity.ok(Map.of("status", "SUCCESS", "message", "All RFP records and clarifications cleared. Ready for fresh upload."));
+    }
+
+    /**
+     * Move a Requirement into the Customer Clarification List
+     */
+    @PostMapping("/clarifications/add")
+    public ResponseEntity<ClarificationItemDTO> flagClarification(
+            @RequestParam("queryId") Long queryId,
+            @RequestParam(value = "reason", required = false) String reason) {
+        log.info("Flagging query ID {} for customer clarification", queryId);
+        return ResponseEntity.ok(clarificationService.flagQueryForClarification(queryId, reason));
+    }
+
+    /**
+     * Delete/Resolve a Clarification Item
+     */
+    @DeleteMapping("/clarifications/{id}")
+    public ResponseEntity<Map<String, String>> deleteClarification(@PathVariable("id") Long id) {
+        log.info("Deleting clarification ID: {}", id);
+        clarificationService.deleteClarification(id);
+        return ResponseEntity.ok(Map.of("status", "SUCCESS", "message", "Clarification item resolved"));
+    }
+
+    /**
+     * Update Requirement Classification directly (SE workbench action)
+     */
+    @PostMapping("/queries/{id}/classify")
+    public ResponseEntity<Map<String, String>> updateClassification(
+            @PathVariable("id") Long queryId,
+            @RequestParam("classification") String classification) {
+        log.info("Updating query ID {} classification to: {}", queryId, classification);
+        clarificationService.updateClassification(queryId, classification);
+        return ResponseEntity.ok(Map.of("status", "SUCCESS", "classification", classification));
     }
 
     /**

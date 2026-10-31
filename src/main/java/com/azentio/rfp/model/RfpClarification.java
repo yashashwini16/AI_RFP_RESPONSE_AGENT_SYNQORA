@@ -18,8 +18,24 @@ public class RfpClarification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "document_id")
+    private Long documentId;
+
     @Column(name = "query_id")
     private Long queryId;
+
+    @Column(name = "requirement_id")
+    private String requirementId;
+
+    @Column(name = "section_name")
+    private String sectionName;
+
+    @Column(name = "rfp_title")
+    private String rfpTitle;
+
+    @Column(name = "status")
+    @Builder.Default
+    private String status = "PENDING_CUSTOMER_FEEDBACK";
 
     @Column(name = "question_text", nullable = false, columnDefinition = "TEXT")
     private String questionText;
