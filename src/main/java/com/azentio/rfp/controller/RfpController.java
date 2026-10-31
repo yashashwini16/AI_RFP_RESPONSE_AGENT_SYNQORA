@@ -202,6 +202,35 @@ public class RfpController {
     /**
      * Level 1 Capability 6: Export Consolidated Response to Excel Spreadsheet (.csv)
      */
+
+    /**
+     * Get Active LLM Engine & Model Status
+     */
+    @GetMapping("/config/llm")
+    public ResponseEntity<Map<String, Object>> getLlmConfig() {
+        return ResponseEntity.ok(agentService.getLlmConfig());
+    }
+
+    /**
+     * Configure Dynamic OpenAI LLM API Key & Model
+     */
+    @PostMapping("/config/llm")
+    public ResponseEntity<Map<String, Object>> configureLlm(@RequestBody Map<String, String> payload) {
+        String apiKey = payload.get("apiKey");
+        String modelName = payload.get("modelName");
+        String baseUrl = payload.get("baseUrl");
+        return ResponseEntity.ok(agentService.configureLlm(apiKey, modelName, baseUrl));
+    }
+
+    /**
+     * SE Add Knowledge to Vault
+     */
+    @PostMapping("/knowledge")
+    public ResponseEntity<RfpKnowledgeBase> ingestKnowledge(@Valid @RequestBody IngestRequest request) {
+        log.info("Ingesting verified Q&A into knowledge vault: {}", request.getQuestion());
+        return ResponseEntity.ok(knowledgeService.ingest(request));
+    }
+
     @GetMapping(value = "/export/excel", produces = "text/csv")
     public ResponseEntity<String> exportExcelSpreadsheet() {
         String csv = exportService.exportExcelCsv("all");

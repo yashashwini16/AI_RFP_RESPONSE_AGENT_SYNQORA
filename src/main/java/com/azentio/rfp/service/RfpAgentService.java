@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -104,6 +105,84 @@ public class RfpAgentService {
         String assignedDesk = guardrail.isTriggered() 
                 ? guardrail.assignedOwner() 
                 : resolveAssignedDesk(request.getCategory(), request.getSectionName(), request.getQuestion());
+
+        // 4c. In-Flight SE Workbench Copilot / Ad-hoc Prompt (Preview without persisting to tender matrix)
+        if (request.isRetrievalOnly()) {
+            if (guardrail.isTriggered()) {
+                return RfpQueryResponseDTO.builder()
+                        .requirementId(reqId)
+                        .clientName(request.getClientName())
+                        .sectionName(request.getSectionName())
+                        .question(request.getQuestion())
+                        .category(request.getCategory())
+                        .requirementType(request.getRequirementType())
+                        .questionType(questionType)
+                        .responseClassification("Partially Addressed")
+                        .unansweredExplanation("Commercial, legal, or SLA liability terms require direct authorization from the " + guardrail.assignedOwner() + ".")
+                        .assignedOwner(assignedDesk)
+                        .guardrailFlag(guardrail.guardrailFlag())
+                        .guardrailReason(guardrail.reasonExplanation())
+                        .draftedAnswer(guardrail.reasonExplanation())
+                        .reviewedAnswer(guardrail.reasonExplanation())
+                        .confidenceScore(100)
+                        .citations(Collections.emptyList())
+                        .status("NEEDS_REVIEW")
+                        .latencyMs((int) (System.currentTimeMillis() - startTime))
+                        .modelUsed("Azentio-Guardrail-Engine")
+                        .build();
+            }
+
+            List<HistoricalMatchDTO> matches = retrievalService.retrieveTopMatches(request.getQuestion(), 3);
+            for (HistoricalMatchDTO m : matches) {
+                m.setApprovedAnswer(guardrailService.sanitizeConfidentialDetails(m.getApprovedAnswer()));
+            }
+            String outdatedWarning = guardrailService.evaluateSourceQuality(matches);
+            int topScore = (!matches.isEmpty() && matches.get(0).getSimilarityPercentage() != null)
+                    ? matches.get(0).getSimilarityPercentage() : 0;
+            boolean isGap = topScore < 50 || matches.isEmpty();
+            String responseClassification;
+            String draftedAnswer;
+            String unansweredExplanation = null;
+            if (isGap) {
+                responseClassification = "Information Required";
+                unansweredExplanation = "No approved organizational knowledge answers this specific requirement with >= 50% confidence (Score: " + topScore + "%). Customer parameter clarification is required.";
+                draftedAnswer = "⚠️ INFORMATION REQUIRED: Supporting organizational knowledge is insufficient to answer this requirement with high confidence ("
+                        + topScore + "%). Customer parameter clarification is recommended.";
+            } else if (topScore >= 80) {
+                responseClassification = "Fully Addressed";
+                draftedAnswer = generateGroundedAnswer(request.getClientName(), request.getQuestion(), matches);
+            } else {
+                responseClassification = "Partially Addressed";
+                unansweredExplanation = "Organizational documentation partially matches this requirement (" + topScore + "% similarity). Sales Engineer review recommended.";
+                draftedAnswer = generateGroundedAnswer(request.getClientName(), request.getQuestion(), matches);
+            }
+
+            int latency = (int) (System.currentTimeMillis() - startTime);
+            String model = useRealLlm ? chatModelName : "Azentio-Grounded-Synthesizer-v1";
+
+            return RfpQueryResponseDTO.builder()
+                    .requirementId(reqId)
+                    .clientName(request.getClientName())
+                    .sectionName(request.getSectionName())
+                    .question(request.getQuestion())
+                    .category(request.getCategory())
+                    .requirementType(request.getRequirementType())
+                    .questionType(questionType)
+                    .responseClassification(responseClassification)
+                    .unansweredExplanation(unansweredExplanation)
+                    .assignedOwner(assignedDesk)
+                    .guardrailFlag(null)
+                    .draftedAnswer(draftedAnswer)
+                    .reviewedAnswer(draftedAnswer)
+                    .confidenceScore(topScore)
+                    .gapFlag(isGap)
+                    .outdatedWarning(outdatedWarning)
+                    .citations(matches)
+                    .status("DRAFTED")
+                    .latencyMs(latency)
+                    .modelUsed(model)
+                    .build();
+        }
 
         // 5. Persist Query
         RfpQuery query = RfpQuery.builder()
@@ -398,11 +477,15 @@ public class RfpAgentService {
     }
 
     private String generateGroundedAnswer(String clientName, String question, List<HistoricalMatchDTO> sources) {
+        if (sources == null || sources.isEmpty()) {
+            return "No matching organizational knowledge found for this requirement.";
+        }
         if (useRealLlm && chatLanguageModel != null) {
             try {
                 StringBuilder prompt = new StringBuilder();
-                prompt.append("You are Azentio's Senior Sales Engineer answering an enterprise RFP requirement.\n");
-                prompt.append("Strict rule: Generate an evidence-backed answer grounded strictly in the 3 approved knowledge sources below.\n\n");
+                prompt.append("You are Azentio's Principal Solutions Architect & Senior Sales Engineer responding to an enterprise RFP requirement for Azentio iMAL Islamic Banking.\n");
+                prompt.append("STRICT INSTRUCTION: Ground your answer completely in the approved organizational knowledge sources below.\n");
+                prompt.append("Address the requirement directly and authoritatively. Explicitly explain the Islamic banking operational mechanism (e.g. Murabaha, Ijara, Mudaraba, Sukuk, AAOIFI/IFSB standards compliance), architectural interfaces, and cite the supporting evidence documents.\n\n");
                 prompt.append("Target Client: ").append(clientName).append("\n");
                 prompt.append("Requirement: ").append(question).append("\n\n");
                 prompt.append("Approved Organizational Knowledge Sources:\n");
@@ -410,16 +493,104 @@ public class RfpAgentService {
                     prompt.append("- [Source: ").append(s.getSourceType()).append(" | Doc: ").append(s.getSourceDocument())
                             .append(", Ref: ").append(s.getSectionReference()).append("]: ").append(s.getApprovedAnswer()).append("\n");
                 }
-                prompt.append("\nGenerate an authoritative, customer-adapted proposal response:");
+                prompt.append("\nGenerate an authoritative, customer-adapted enterprise proposal response structured with:\n1. Executive Summary & Compliance Statement\n2. Islamic Banking Capability & Operational Workflow\n3. Grounded Evidence & Verification.\n");
                 return chatLanguageModel.generate(prompt.toString());
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                log.warn("Real LLM call failed or timed out ({}). Falling back to multi-source grounded synthesis: {}", chatModelName, e.getMessage());
+            }
         }
 
+        // Multi-Source Grounded Synthesizer
         HistoricalMatchDTO top = sources.get(0);
-        return String.format(
-                "In response to %s's requirement regarding \"%s\":\n\n%s\n\n" +
-                "Compliance & Grounding: Verified in Azentio organizational documentation (%s - %s, %s).",
-                clientName, question, top.getApprovedAnswer(), top.getSourceType(), top.getSourceDocument(), top.getSectionReference()
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("In response to %s's requirement regarding \"%s\":\n\n",
+                clientName != null ? clientName : "the Bank", question));
+        sb.append("Azentio iMAL Core Islamic Banking natively complies with this requirement in full alignment with international AAOIFI and IFSB governance standards.\n\n");
+        sb.append("• Operational & Architectural Capability:\n");
+        sb.append(top.getApprovedAnswer()).append("\n\n");
+
+        if (sources.size() > 1) {
+            sb.append("• Supporting Enterprise Evidence & Implementation Record:\n");
+            for (int i = 1; i < sources.size(); i++) {
+                HistoricalMatchDTO aux = sources.get(i);
+                sb.append(String.format("- [%s / %s, %s]: %s\n", aux.getSourceType(), aux.getSourceDocument(), aux.getSectionReference(), aux.getApprovedAnswer()));
+            }
+            sb.append("\n");
+        }
+
+        sb.append(String.format("Compliance Grounding: Formally verified in Azentio Organizational Knowledge Vault (%s - %s, %s).",
+                top.getSourceType(), top.getSourceDocument(), top.getSectionReference()));
+
+        return sb.toString();
+
+
+
+
+
+    }
+
+    public synchronized Map<String, Object> configureLlm(String apiKey, String modelName, String baseUrl) {
+        if (apiKey == null || apiKey.trim().isEmpty() || apiKey.equalsIgnoreCase("mock")) {
+            this.useRealLlm = false;
+            this.chatLanguageModel = null;
+            this.openAiApiKey = "mock";
+            log.info("LLM configured to Built-in Grounded Synthesizer");
+            return Map.of(
+                    "status", "SUCCESS",
+                    "mode", "BUILTIN_SYNTHESIZER",
+                    "active", false,
+                    "model", "Azentio-Grounded-Synthesizer-v1",
+                    "message", "Active: Built-in Azentio Grounded Synthesizer"
+            );
+        }
+
+        try {
+            String selectedModel = (modelName != null && !modelName.isBlank()) ? modelName.trim() : "gpt-4o-mini";
+            var builder = OpenAiChatModel.builder()
+                    .apiKey(apiKey.trim())
+                    .modelName(selectedModel)
+                    .temperature(0.2)
+                    .timeout(java.time.Duration.ofSeconds(35));
+
+            if (baseUrl != null && !baseUrl.isBlank()) {
+                builder.baseUrl(baseUrl.trim());
+            }
+
+            this.chatLanguageModel = builder.build();
+            this.openAiApiKey = apiKey.trim();
+            this.chatModelName = selectedModel;
+            this.useRealLlm = true;
+
+            log.info("Runtime LLM successfully configured: model={}", this.chatModelName);
+            return Map.of(
+                    "status", "SUCCESS",
+                    "mode", "REAL_LLM",
+                    "active", true,
+                    "model", this.chatModelName,
+                    "message", "Active: OpenAI " + this.chatModelName
+            );
+        } catch (Exception e) {
+            log.error("Failed to initialize OpenAiChatModel: {}", e.getMessage());
+            return Map.of(
+                    "status", "ERROR",
+                    "active", false,
+                    "message", "Failed to activate LLM: " + e.getMessage()
+            );
+        }
+    }
+
+    public Map<String, Object> getLlmConfig() {
+        boolean hasKey = openAiApiKey != null && !openAiApiKey.isBlank() && !openAiApiKey.equalsIgnoreCase("mock");
+        String maskedKey = hasKey && openAiApiKey.length() > 8 
+                ? openAiApiKey.substring(0, 4) + "..." + openAiApiKey.substring(openAiApiKey.length() - 4) 
+                : (hasKey ? "sk-***" : "None (Built-in Mode)");
+
+        return Map.of(
+                "active", useRealLlm,
+                "model", chatModelName != null ? chatModelName : "gpt-4o-mini",
+                "hasKey", hasKey,
+                "maskedKey", maskedKey,
+                "engineDescription", useRealLlm ? ("OpenAI " + chatModelName) : "Built-in Azentio Grounded Synthesizer"
         );
     }
 

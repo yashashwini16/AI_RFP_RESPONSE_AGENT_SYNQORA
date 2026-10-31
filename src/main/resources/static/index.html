@@ -72,7 +72,17 @@
 
       <!-- Connection Status & Actions -->
       <div class="flex items-center space-x-3">
-        <button 
+                <button 
+          onclick="openLlmModal()" 
+          id="btnLlmSettings"
+          class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 hover:border-indigo-300 transition"
+          title="Configure OpenAI LLM Engine & API Key"
+        >
+          <i class="fa-solid fa-brain mr-1.5 text-indigo-500"></i>
+          <span id="llmNavBadge">LLM: Ready</span>
+        </button>
+
+<button 
           onclick="resetAllRfpData()" 
           class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 transition"
           title="Clear all test data and reset the workspace"
@@ -276,6 +286,181 @@
           <strong id="teamKpiCommercial" class="text-sm font-extrabold text-rose-900">0 reqs</strong>
         </div>
       </div>
+
+            <!-- ============================================================ -->
+      <!-- SE AI COPILOT & INTERACTIVE PROMPT ASSISTANT                 -->
+      <!-- ============================================================ -->
+      <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 rounded-2xl p-6 text-white shadow-xl border border-indigo-800/40 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-white/10">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-amber-300 text-lg shadow-inner">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <div>
+              <div class="flex items-center space-x-2">
+                <h3 class="text-base font-bold tracking-tight text-white">⚡ SE AI Copilot & Live Prompt Assistant</h3>
+                <span id="copilotEngineBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Grounded Synthesizer Active
+                </span>
+              </div>
+              <p class="text-xs text-slate-300">Ask ad-hoc bank tender questions, test custom scenarios, and synthesize evidence-grounded responses in real-time.</p>
+            </div>
+          </div>
+          <button 
+            type="button"
+            onclick="openLlmModal()" 
+            class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-blue-100 transition flex items-center space-x-1.5 self-start sm:self-auto border border-white/10"
+          >
+            <i class="fa-solid fa-gear text-indigo-300"></i>
+            <span>LLM Settings</span>
+          </button>
+        </div>
+
+        <!-- Quick Benchmark Islamic Banking Prompt Chips -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-indigo-200">
+            <span><span>🕌</span> Quick Benchmark Islamic Banking Scenarios:</span>
+            <span class="text-[10px] text-slate-400 normal-case font-normal">Click any scenario to populate prompt</span>
+          </div>
+          <div class="flex flex-wrap gap-2 text-xs">
+            <button type="button" onclick="fillQuickPrompt('Does iMAL integrate with FIX protocol or Bloomberg for automated commodity Murabaha broker execution?', 'INTEGRATION')" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-indigo-600/40 text-blue-100 text-[11px] transition text-left border border-white/10">
+              🕌 Murabaha FIX Gateway
+            </button>
+            <button type="button" onclick="fillQuickPrompt('How does iMAL handle asset depreciation, insurance (Takaful), and transfer of ownership in Ijara Muntahiya Bittamleek?', 'FUNCTIONAL')" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-indigo-600/40 text-blue-100 text-[11px] transition text-left border border-white/10">
+              📜 Ijara Residual & Takaful
+            </button>
+            <button type="button" onclick="fillQuickPrompt('What is the RPO and RTO for iMAL core banking across multi-region active-passive OpenShift clusters?', 'TECHNICAL')" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-indigo-600/40 text-blue-100 text-[11px] transition text-left border border-white/10">
+              🛡️ Multi-AZ OpenShift DR
+            </button>
+            <button type="button" onclick="fillQuickPrompt('Explain the automated calculation and Shariah accounting entries for PER and IRR smoothing on Mudaraba investment accounts.', 'COMPLIANCE')" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-indigo-600/40 text-blue-100 text-[11px] transition text-left border border-white/10">
+              ⚖️ Profit Equalization Reserve (PER)
+            </button>
+            <button type="button" onclick="fillQuickPrompt('What are the standard pricing models and licensing tiers for Azentio iMAL core banking implementation?', 'COMMERCIAL')" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 text-[11px] transition text-left border border-rose-400/20">
+              ⚖️ Commercial Pricing Guardrail
+            </button>
+          </div>
+        </div>
+
+        <!-- Prompt Input Form -->
+        <div class="bg-black/30 rounded-xl p-3.5 space-y-3 border border-white/10">
+          <textarea 
+            id="copilotPromptInput" 
+            rows="2" 
+            placeholder="Ask a question or enter tender requirement text (e.g. 'Explain how iMAL enforces Shariah audit trails and dual authorization on Murabaha contracts')..."
+            class="w-full bg-slate-900/80 text-white placeholder-slate-400 text-xs rounded-lg p-3 border border-white/20 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none font-sans"
+          ></textarea>
+          
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-2 text-xs">
+              <span class="text-slate-300 text-[11px]">Category:</span>
+              <select id="copilotCategorySelect" class="bg-slate-900 text-white text-xs py-1.5 px-3 rounded-lg border border-white/20 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                <option value="FUNCTIONAL">Functional & Shariah</option>
+                <option value="TECHNICAL">Technical & Architecture</option>
+                <option value="SECURITY">InfoSec & Audit</option>
+                <option value="INTEGRATION">APIs & Integration</option>
+                <option value="MIGRATION">Data Migration</option>
+                <option value="COMMERCIAL">Commercial & Legal</option>
+              </select>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+              <button 
+                type="button"
+                id="btnRunCopilot"
+                onclick="runCopilotAnalysis()" 
+                class="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 font-bold text-xs shadow-md transition flex items-center space-x-2 text-white"
+              >
+                <i class="fa-solid fa-bolt"></i>
+                <span id="btnRunCopilotText">🚀 Generate AI Answer</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Copilot Live Result Card (Initially hidden) -->
+        <div id="copilotResultBox" class="hidden bg-white rounded-xl p-5 text-slate-800 shadow-xl space-y-4 border border-slate-200">
+          <!-- Metadata Bar -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+            <div class="flex flex-wrap items-center gap-2">
+              <span id="copilotScoreBadge" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                95% Confidence
+              </span>
+              <span id="copilotClassBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+                Fully Addressed
+              </span>
+              <span id="copilotDeskBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
+                🏢 Product & Shariah Desk
+              </span>
+            </div>
+            <div class="text-[11px] text-slate-400 font-mono flex items-center space-x-1.5">
+              <i class="fa-solid fa-clock mr-0.5"></i>
+              <span id="copilotLatency">140ms</span>
+              <span>•</span>
+              <span id="copilotModelName">LLM Synthesizer</span>
+            </div>
+          </div>
+
+          <!-- Question Text -->
+          <div class="text-xs font-bold text-slate-900 flex items-start space-x-2">
+            <i class="fa-solid fa-circle-question text-blue-600 mt-0.5 shrink-0"></i>
+            <span id="copilotEchoQuestion" class="leading-relaxed"></span>
+          </div>
+
+          <!-- Answer Text -->
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-800 leading-relaxed font-sans whitespace-pre-line" id="copilotAnswerText">
+          </div>
+
+          <!-- Citations Drawer -->
+          <div class="space-y-1.5 pt-2 border-t border-slate-100">
+            <div class="flex items-center justify-between text-xs text-slate-600 font-semibold">
+              <span><i class="fa-solid fa-layer-group text-slate-400 mr-1.5"></i> Grounded Enterprise Knowledge Sources</span>
+              <span class="text-[10px] text-slate-400">Verified repository evidence</span>
+            </div>
+            <div id="copilotCitationsList" class="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1 text-[11px]">
+            </div>
+          </div>
+
+          <!-- Action Bar -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
+            <div class="flex flex-wrap items-center gap-2">
+              <button 
+                type="button"
+                onclick="addPromptToActiveTender()" 
+                id="btnAddPromptToTender"
+                class="px-3.5 py-2 rounded-lg bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold shadow-sm transition flex items-center space-x-1.5"
+              >
+                <i class="fa-solid fa-plus-circle"></i>
+                <span>Add to Active Tender Proposal</span>
+              </button>
+              <button 
+                type="button"
+                onclick="savePromptToVault()" 
+                id="btnSavePromptVault"
+                class="px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold transition flex items-center space-x-1.5"
+              >
+                <i class="fa-solid fa-database"></i>
+                <span>Save to Knowledge Vault</span>
+              </button>
+              <button 
+                type="button"
+                onclick="copyCopilotAnswer()" 
+                class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition flex items-center space-x-1.5"
+              >
+                <i class="fa-regular fa-copy"></i>
+                <span>Copy Answer</span>
+              </button>
+            </div>
+            <button 
+              type="button"
+              onclick="resetCopilotBox()" 
+              class="text-xs text-slate-400 hover:text-slate-600 transition px-2 py-1"
+            >
+              Clear Preview
+            </button>
+          </div>
+        </div>
+      </div>
+
 
       <!-- Requirements List Container -->
       <div id="requirementsList" class="space-y-4">
@@ -995,5 +1180,91 @@
         .replace(/'/g, '&#039;');
     }
   </script>
+  <!-- ============================================================ -->
+  <!-- LLM SETTINGS MODAL                                           -->
+  <!-- ============================================================ -->
+  <div id="llmSettingsModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-200">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-key"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">LLM Engine Configuration</h3>
+            <p class="text-[11px] text-slate-500">Configure real OpenAI API Key or Built-in Synthesizer</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeLlmModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-sm"></i></button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">OpenAI API Key</label>
+          <div class="relative">
+            <input 
+              type="password" 
+              id="modalLlmApiKey" 
+              placeholder="sk-..." 
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-8"
+            />
+            <button type="button" onclick="toggleApiKeyVisibility()" class="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
+              <i id="apiKeyEyeIcon" class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+          <p id="modalKeyStatusHint" class="text-[10px] text-slate-400 mt-1">Leave blank or enter 'mock' to use Azentio Built-in Synthesizer.</p>
+        </div>
+
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Model Name</label>
+          <select id="modalLlmModel" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <option value="gpt-4o-mini">gpt-4o-mini (Recommended - Fast & Grounded)</option>
+            <option value="gpt-4o">gpt-4o (High-Precision Enterprise Reasoning)</option>
+            <option value="gpt-4-turbo">gpt-4-turbo</option>
+            <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Custom API Base URL (Optional)</label>
+          <input 
+            type="text" 
+            id="modalLlmBaseUrl" 
+            placeholder="https://api.openai.com/v1" 
+            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+          />
+          <p class="text-[10px] text-slate-400 mt-1">Leave blank for default OpenAI cloud. Compatible with Azure OpenAI or local proxies.</p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+        <button 
+          type="button"
+          onclick="switchToBuiltinSynthesizer()" 
+          class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold"
+        >
+          Reset to Built-in
+        </button>
+        <div class="flex items-center space-x-2">
+          <button 
+            type="button"
+            onclick="closeLlmModal()" 
+            class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-800 text-xs font-medium"
+          >
+            Cancel
+          </button>
+          <button 
+            type="button"
+            onclick="saveLlmConfig()" 
+            id="btnSaveLlmConfig"
+            class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition"
+          >
+            Save & Activate
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
