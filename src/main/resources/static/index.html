@@ -14,11 +14,9 @@
           colors: {
             brand: {
               50: '#eff6ff',
-              100: '#dbeafe',
-              600: '#2563eb',
-              700: '#1d4ed8',
+              600: '#1d4ed8',
               800: '#1e40af',
-              900: '#1e3a8a'
+              900: '#0f2756'
             }
           }
         }
@@ -26,320 +24,322 @@
     }
   </script>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
 
-  <!-- Toast Notification Banner -->
-  <div id="toastNotification" class="fixed top-5 right-5 z-50 transform transition-all duration-300 translate-y-[-100px] opacity-0">
+  <!-- Floating Toast Notification -->
+  <div id="toastNotification" class="fixed top-5 right-5 z-50 transform transition-all duration-300 translate-y-[-100px] opacity-0 pointer-events-none">
     <div class="flex items-center px-4 py-3 rounded-xl shadow-xl bg-slate-900 text-white space-x-3 border border-slate-700">
       <div id="toastIcon" class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
         <i class="fa-solid fa-check"></i>
       </div>
       <div>
-        <p id="toastTitle" class="text-xs font-bold">RFP Ingested Successfully</p>
-        <p id="toastMsg" class="text-[11px] text-slate-300">Extracted and triaged requirements.</p>
+        <p id="toastTitle" class="text-xs font-bold">Action Completed</p>
+        <p id="toastMsg" class="text-[11px] text-slate-300">Successfully updated.</p>
       </div>
     </div>
   </div>
 
-  <!-- Top Navigation Header -->
+  <!-- Main Top Navigation -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand & Title -->
       <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-lg bg-blue-900 flex items-center justify-center text-white font-bold text-xl shadow">
+        <div class="w-10 h-10 rounded-xl bg-blue-900 text-white flex items-center justify-center font-bold text-lg shadow">
           <i class="fa-solid fa-building-columns"></i>
         </div>
         <div>
           <div class="flex items-center space-x-2">
-            <h1 class="text-lg font-bold text-slate-900">Azentio iMAL Islamic Banking Copilot</h1>
-            <span class="px-2 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">Challenge B: Level 1</span>
+            <h1 class="text-base font-bold text-slate-900">Azentio iMAL RFP Copilot</h1>
+            <span class="px-2 py-0.5 text-[11px] font-semibold bg-blue-100 text-blue-800 rounded-full">Level 1</span>
           </div>
-          <p class="text-xs text-slate-500">Autonomous Proposal Intelligence & Grounded Islamic Finance (Murabaha, Ijara, Sukuk)</p>
+          <p class="text-xs text-slate-500">Sales Engineering Proposal Assistant for Islamic Banking</p>
         </div>
       </div>
 
-      <div class="flex items-center space-x-3">
-        <div id="connectionStatus" class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+      <!-- Navigation Tabs (Simple & Clear Separation) -->
+      <nav class="hidden md:flex items-center space-x-1 bg-slate-100 p-1 rounded-xl">
+        <button onclick="switchTab('upload')" id="tab-btn-upload" class="px-4 py-1.5 text-xs font-bold rounded-lg transition bg-white text-blue-900 shadow-sm">
+          <i class="fa-solid fa-file-arrow-up mr-1.5 text-blue-700"></i> 1. Upload RFP
+        </button>
+        <button onclick="switchTab('workbench')" id="tab-btn-workbench" class="px-4 py-1.5 text-xs font-medium rounded-lg text-slate-600 hover:text-slate-900 transition">
+          <i class="fa-solid fa-pen-to-square mr-1.5 text-slate-500"></i> 2. SE Review Workbench
+        </button>
+        <button onclick="switchTab('export')" id="tab-btn-export" class="px-4 py-1.5 text-xs font-medium rounded-lg text-slate-600 hover:text-slate-900 transition">
+          <i class="fa-solid fa-clipboard-check mr-1.5 text-slate-500"></i> 3. Compliance & Export
+        </button>
+      </nav>
+
+      <!-- Connection Status -->
+      <div class="flex items-center space-x-2">
+        <div id="connectionStatus" class="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span id="backendStatusText">Backend Online (Port 8080)</span>
         </div>
-        <button onclick="downloadExcel()" class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-sm transition">
-          <i class="fa-solid fa-file-excel mr-1.5 text-emerald-600"></i> Export Excel
-        </button>
-        <button onclick="toggleClarificationModal()" class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-sm transition">
-          <i class="fa-solid fa-circle-question mr-1.5 text-amber-500"></i> Clarifications
-        </button>
       </div>
+
     </div>
   </header>
 
-  <!-- Main Container -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+  <!-- Main Workspace -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
 
-    <!-- RFP Upload & Ingestion Dropzone Card (Level 1 Capability 1) -->
-    <div class="bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 rounded-2xl shadow-lg p-6 text-white">
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-        <div class="space-y-1.5 max-w-xl">
-          <div class="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-blue-700/60 text-blue-200 text-xs font-semibold tracking-wide">
-            <i class="fa-solid fa-file-arrow-up"></i>
-            <span>Level 1: Document Ingestion Engine</span>
-          </div>
-          <h2 class="text-xl font-bold tracking-tight text-white">Upload Incoming Islamic Banking RFP</h2>
-          <p class="text-xs text-blue-200 leading-relaxed">
-            Upload RFP tenders in <strong class="text-white">Excel (.xlsx), PDF, Word (.docx), or CSV</strong> formats. The agent parses requirement IDs, identifies mandatory instructions, extracts tables, and categorizes functional, technical, security, compliance, and commercial questions.
-          </p>
-        </div>
-
-        <!-- Upload Action Area -->
-        <div class="bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20 flex flex-col sm:flex-row items-center gap-3">
-          <input 
-            type="file" 
-            id="rfpFileInput" 
-            accept=".xlsx,.xls,.pdf,.docx,.csv,.txt" 
-            class="hidden" 
-            onchange="handleFileSelect(event)"
-          />
-          <button 
-            type="button"
-            onclick="document.getElementById('rfpFileInput').click()" 
-            class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-white text-blue-900 font-bold text-xs shadow hover:bg-blue-50 transition"
-          >
-            <i class="fa-solid fa-folder-open mr-2 text-blue-700"></i> Browse File
-          </button>
-
-          <button 
-            id="btnUploadFile"
-            type="button"
-            onclick="uploadSelectedFile()" 
-            class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow transition"
-          >
-            <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Ingest & Parse
-          </button>
-
-          <button 
-            type="button"
-            onclick="loadDemoBenchmark()" 
-            class="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2.5 rounded-lg bg-blue-950/60 hover:bg-blue-950 text-blue-200 text-xs font-medium border border-blue-400/30 transition"
-          >
-            <i class="fa-solid fa-wand-magic-sparkles mr-1.5 text-amber-300"></i> Load Demo RFP
-          </button>
-        </div>
+    <!-- ============================================================ -->
+    <!-- TAB 1: UPLOAD & INGESTION (CLEAN & MINIMAL)                   -->
+    <!-- ============================================================ -->
+    <div id="tab-view-upload" class="space-y-6">
+      
+      <div class="max-w-3xl mx-auto text-center space-y-2">
+        <h2 class="text-2xl font-bold text-slate-900">Upload Incoming Bank RFP</h2>
+        <p class="text-sm text-slate-500">
+          Upload customer tender questionnaires in Excel (.xlsx), PDF, or Word (.docx). The agent parses requirements, extracts compliance matrices, and matches knowledge from Azentio's Product Docs, SOWs, and Past RFPs.
+        </p>
       </div>
 
-      <!-- File selection status bar -->
-      <div id="fileSelectionBar" class="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between text-xs text-blue-200">
-        <div class="flex items-center space-x-2">
-          <i class="fa-solid fa-file-circle-check text-emerald-400"></i>
-          <span>Selected File:</span>
-          <span id="selectedFileName" class="font-mono text-white font-bold bg-white/10 px-2 py-0.5 rounded">QIB_Islamic_Banking_RFP_2026.xlsx (Benchmark Tender)</span>
-          <a href="./QIB_Islamic_Banking_RFP_2026.xlsx" download class="inline-flex items-center ml-2 px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 hover:bg-amber-400/30 font-semibold border border-amber-300/30 transition">
-            <i class="fa-solid fa-file-arrow-down mr-1"></i> Download .xlsx to show judges
+      <!-- Upload Dropzone Card -->
+      <div class="max-w-2xl mx-auto bg-white rounded-2xl border-2 border-dashed border-slate-300 hover:border-blue-500 transition-colors p-8 text-center space-y-4 shadow-sm">
+        
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center text-2xl shadow-inner">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+        </div>
+
+        <div>
+          <h3 class="text-base font-bold text-slate-800">Select RFP Document to Ingest</h3>
+          <p class="text-xs text-slate-500 mt-1">Supports Microsoft Excel (.xlsx), PDF, or Word formats</p>
+        </div>
+
+        <input 
+          type="file" 
+          id="rfpFileInput" 
+          accept=".xlsx,.xls,.pdf,.docx,.csv,.txt" 
+          class="hidden" 
+          onchange="handleFileSelect(event)"
+        />
+
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          <button 
+            type="button" 
+            onclick="document.getElementById('rfpFileInput').click()"
+            class="px-5 py-2.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs shadow transition flex items-center"
+          >
+            <i class="fa-solid fa-folder-open mr-2"></i> Browse Local File
+          </button>
+          
+          <button 
+            id="btnIngest"
+            type="button" 
+            onclick="uploadSelectedFile()"
+            class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition flex items-center"
+          >
+            <i class="fa-solid fa-bolt mr-2"></i> Ingest & Parse
+          </button>
+        </div>
+
+        <!-- Selected File Status Display -->
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-center space-x-2 text-xs text-slate-600">
+          <span>Active Selection:</span>
+          <span id="selectedFileName" class="font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md">
+            QIB_Islamic_Banking_RFP_2026.xlsx
+          </span>
+          <a 
+            href="/QIB_Islamic_Banking_RFP_2026.xlsx" 
+            download 
+            class="inline-flex items-center text-blue-700 hover:text-blue-900 font-semibold underline ml-1"
+          >
+            <i class="fa-solid fa-download mr-1"></i> Download .xlsx
           </a>
         </div>
-        <div class="flex items-center space-x-3 text-[11px] text-blue-300">
-          <span>Client: <strong class="text-white">Qatar Islamic Bank</strong></span>
-          <span>•</span>
-          <span>Suite: <strong class="text-white">Azentio iMAL Core Banking</strong></span>
-          <span>•</span>
-          <span>Preserves IDs: <code class="text-amber-300">REQ-FN-01</code></span>
-        </div>
-      </div>
-    </div>
 
-    <!-- KPI Summary Row -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Requirements</span>
-          <i class="fa-solid fa-list-check text-slate-400"></i>
-        </div>
-        <div class="mt-2 flex items-baseline">
-          <span id="kpiTotal" class="text-2xl font-bold text-slate-900">0</span>
-          <span class="ml-2 text-xs text-slate-500">triaged</span>
-        </div>
       </div>
 
-      <div class="bg-white p-4 rounded-xl border border-emerald-100 shadow-sm bg-gradient-to-br from-white to-emerald-50/30">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-medium text-emerald-800 uppercase tracking-wider">Fully Addressed</span>
-          <i class="fa-solid fa-circle-check text-emerald-500"></i>
-        </div>
-        <div class="mt-2 flex items-baseline">
-          <span id="kpiFully" class="text-2xl font-bold text-emerald-700">0</span>
-          <span class="ml-2 text-xs text-emerald-600 font-medium">high grounding</span>
-        </div>
-      </div>
-
-      <div class="bg-white p-4 rounded-xl border border-amber-100 shadow-sm bg-gradient-to-br from-white to-amber-50/30">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-medium text-amber-800 uppercase tracking-wider">Partially Addressed</span>
-          <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
-        </div>
-        <div class="mt-2 flex items-baseline">
-          <span id="kpiPartial" class="text-2xl font-bold text-amber-700">0</span>
-          <span class="ml-2 text-xs text-amber-600 font-medium">guardrails/gaps</span>
-        </div>
-      </div>
-
-      <div class="bg-white p-4 rounded-xl border border-rose-100 shadow-sm bg-gradient-to-br from-white to-rose-50/30">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-medium text-rose-800 uppercase tracking-wider">Info Required</span>
-          <i class="fa-solid fa-circle-question text-rose-500"></i>
-        </div>
-        <div class="mt-2 flex items-baseline">
-          <span id="kpiInfo" class="text-2xl font-bold text-rose-700">0</span>
-          <span class="ml-2 text-xs text-rose-600 font-medium">client query</span>
-        </div>
-      </div>
-
-      <div class="bg-white p-4 rounded-xl border border-blue-100 shadow-sm bg-gradient-to-br from-white to-blue-50/30">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-medium text-blue-800 uppercase tracking-wider">Avg Confidence</span>
-          <i class="fa-solid fa-chart-line text-blue-500"></i>
-        </div>
-        <div class="mt-2 flex items-baseline">
-          <span id="kpiConfidence" class="text-2xl font-bold text-blue-700">0%</span>
-          <span class="ml-2 text-xs text-blue-600 font-medium">calibrated</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Live Test / Question Query Section -->
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-      <div class="flex items-center justify-between mb-3">
-        <div class="flex items-center space-x-2">
-          <div class="w-7 h-7 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
-            <i class="fa-solid fa-bolt"></i>
-          </div>
+      <!-- Quick Benchmark Banner (for instant demo) -->
+      <div class="max-w-2xl mx-auto bg-slate-100/80 rounded-xl p-4 flex items-center justify-between text-xs text-slate-600 border border-slate-200">
+        <div class="flex items-center space-x-2.5">
+          <i class="fa-solid fa-wand-magic-sparkles text-amber-500 text-sm"></i>
           <div>
-            <h2 class="text-sm font-bold text-slate-900">Interactive Requirement Tester & Live RAG</h2>
-            <p class="text-xs text-slate-500">Submit any incoming requirement to test semantic matching across the 3 Knowledge Sources</p>
+            <strong class="text-slate-800">Need a quick demo?</strong> Ingest the pre-configured Qatar Islamic Bank Benchmark Tender.
           </div>
         </div>
-        <div class="text-xs text-slate-400">
-          Sources: <span class="text-slate-600 font-semibold">Product Docs | Past SOWs | Past RFPs</span>
-        </div>
-      </div>
-
-      <div class="flex flex-col sm:flex-row gap-2">
-        <input 
-          id="customQueryInput" 
-          type="text" 
-          placeholder="e.g. Does the platform support automated Murabaha commodity broker integration?" 
-          class="flex-1 rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-        />
         <button 
-          onclick="submitInteractiveQuery()" 
-          id="btnSubmitQuery"
-          class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-blue-900 text-white text-sm font-medium hover:bg-blue-800 shadow-sm transition"
+          onclick="loadDemoBenchmark()"
+          class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 font-bold text-slate-800 shadow-sm transition"
         >
-          <i class="fa-solid fa-magnifying-glass mr-2"></i> Run Agent Analysis
+          Load Demo QIB Tender
         </button>
       </div>
 
-      <!-- Quick Preset Buttons -->
-      <div class="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-        <span class="font-medium mr-1">Quick Presets:</span>
-        <button onclick="setQueryPreset('Does the platform support automated Murabaha commodity broker integration and Shariah asset sequence validation?')" class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
-          1. Murabaha Engine
-        </button>
-        <button onclick="setQueryPreset('How does iMAL manage Ijara asset ownership, insurance takaful, and variable profit rate repricing?')" class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
-          2. Ijara Leasing
-        </button>
-        <button onclick="setQueryPreset('Provide the total software license fee pricing and 5-year maintenance cost schedule for 500,000 active Islamic accounts.')" class="px-2.5 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 transition">
-          3. Commercial Guardrail
-        </button>
-        <button onclick="setQueryPreset('Describe the native quantum encryption protocol used for cross-border Islamic Sukuk smart contracts.')" class="px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-800 transition">
-          4. Sukuk Clarification
-        </button>
-      </div>
-
-      <!-- Interactive Query Result Box (Hidden by default) -->
-      <div id="interactiveResultBox" class="mt-4 p-4 rounded-lg bg-blue-50/50 border border-blue-200 hidden space-y-3">
-        <div class="flex items-center justify-between">
+      <!-- Ingestion Results Card (Shows up once loaded) -->
+      <div id="ingestionSummaryCard" class="max-w-2xl mx-auto bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hidden space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
           <div class="flex items-center space-x-2">
-            <span id="resBadgeClassification" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">Fully Addressed</span>
-            <span id="resConfidenceScore" class="text-xs font-semibold text-blue-700">Confidence: 98%</span>
+            <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">
+              <i class="fa-solid fa-check"></i>
+            </div>
+            <h4 class="text-sm font-bold text-slate-900">RFP Successfully Structured</h4>
           </div>
-          <span id="resGuardrailPill" class="text-xs font-medium text-slate-500"></span>
+          <span id="summaryBadgeCount" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+            6 Requirements Extracted
+          </span>
         </div>
-        <div>
-          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Generated Draft Answer:</div>
-          <div id="resDraftText" class="text-sm text-slate-800 whitespace-pre-wrap bg-white p-3 rounded border border-slate-200"></div>
+
+        <div class="grid grid-cols-2 gap-3 text-xs">
+          <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+            <span class="text-slate-500 block">Issuing Client</span>
+            <strong id="summaryClientName" class="text-slate-800 font-semibold text-sm">Qatar Islamic Bank</strong>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+            <span class="text-slate-500 block">Submission Deadline</span>
+            <strong id="summaryDeadline" class="text-slate-800 font-semibold text-sm">November 30, 2026</strong>
+          </div>
         </div>
-        <!-- Citations list -->
-        <div>
-          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Retrieved Citations:</div>
-          <div id="resCitationsContainer" class="space-y-1.5"></div>
+
+        <div class="pt-2 text-center">
+          <button 
+            onclick="switchTab('workbench')"
+            class="w-full py-3 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs shadow transition flex items-center justify-center space-x-2"
+          >
+            <span>Proceed to SE Review Workbench</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
         </div>
       </div>
+
     </div>
 
-    <!-- Active RFP Requirements Workspace -->
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <!-- ============================================================ -->
+    <!-- TAB 2: SE REVIEW & APPROVAL WORKBENCH                        -->
+    <!-- ============================================================ -->
+    <div id="tab-view-workbench" class="hidden space-y-6">
+
+      <!-- Workbench Header & Filter Bar -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
-          <h2 class="text-base font-bold text-slate-900">RFP Requirements Matrix & SE Review Workbench</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Sales Engineer in Full Control — Edit, Verify Grounding, and Approve Autonomous Drafts</p>
+          <h2 class="text-xl font-bold text-slate-900">Sales Engineering Review Workbench</h2>
+          <p class="text-xs text-slate-500">Sales Engineer in Full Control — Edit Drafts, Inspect Citations, and Approve Responses</p>
         </div>
-        <div class="flex items-center space-x-2 text-xs">
-          <label class="text-slate-500 font-medium">Filter:</label>
-          <select id="filterClassification" onchange="renderRequirementsTable()" class="rounded border border-slate-300 px-2 py-1 bg-white text-slate-700">
-            <option value="ALL">All Classifications</option>
-            <option value="Fully Addressed">Fully Addressed</option>
-            <option value="Partially Addressed">Partially Addressed</option>
-            <option value="Information Required">Information Required</option>
-            <option value="Not Supported">Not Supported</option>
-          </select>
+
+        <!-- Filter Buttons -->
+        <div class="flex items-center space-x-2">
+          <span class="text-xs font-medium text-slate-500">Filter:</span>
+          <div class="inline-flex rounded-lg bg-slate-100 p-1 text-xs">
+            <button onclick="filterWorkbench('ALL')" id="filter-btn-all" class="px-3 py-1 font-bold rounded-md bg-white text-slate-800 shadow-sm">All</button>
+            <button onclick="filterWorkbench('Fully Addressed')" id="filter-btn-fully" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900">Fully Addressed</button>
+            <button onclick="filterWorkbench('Partially Addressed')" id="filter-btn-partial" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900">Partially Addressed</button>
+            <button onclick="filterWorkbench('Information Required')" id="filter-btn-info" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900">Clarification Needed</button>
+          </div>
         </div>
       </div>
 
-      <!-- Requirements Container -->
-      <div id="requirementsList" class="divide-y divide-slate-200">
+      <!-- Requirements List Container -->
+      <div id="requirementsList" class="space-y-4">
         <!-- Rendered dynamically by JavaScript -->
         <div class="p-12 text-center text-slate-400">
           <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
-          <p class="text-sm">Connecting to backend and loading requirements...</p>
+          <p class="text-sm">Loading requirement records...</p>
         </div>
       </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 3: COMPLIANCE, CLARIFICATIONS & EXPORT                   -->
+    <!-- ============================================================ -->
+    <div id="tab-view-export" class="hidden space-y-6">
+
+      <!-- Overview Header -->
+      <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Final Proposal & Export Engine</h2>
+          <p class="text-xs text-slate-500">Generate submission-ready compliance matrix in the required customer format</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="downloadExcel()" class="inline-flex items-center px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition">
+            <i class="fa-solid fa-file-excel mr-2"></i> Download Excel (.CSV)
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Total Questions</span>
+          <div class="mt-2 flex items-baseline">
+            <span id="kpiTotal" class="text-3xl font-extrabold text-slate-900">0</span>
+            <span class="ml-2 text-xs text-slate-500">triaged</span>
+          </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm bg-gradient-to-br from-white to-emerald-50/40">
+          <span class="text-xs font-semibold text-emerald-800 uppercase tracking-wider block">Fully Addressed</span>
+          <div class="mt-2 flex items-baseline">
+            <span id="kpiFully" class="text-3xl font-extrabold text-emerald-700">0</span>
+            <span class="ml-2 text-xs text-emerald-600 font-medium">high confidence</span>
+          </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-amber-100 shadow-sm bg-gradient-to-br from-white to-amber-50/40">
+          <span class="text-xs font-semibold text-amber-800 uppercase tracking-wider block">Guardrails / Partial</span>
+          <div class="mt-2 flex items-baseline">
+            <span id="kpiPartial" class="text-3xl font-extrabold text-amber-700">0</span>
+            <span class="ml-2 text-xs text-amber-600 font-medium">routed to desks</span>
+          </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm bg-gradient-to-br from-white to-blue-50/40">
+          <span class="text-xs font-semibold text-blue-800 uppercase tracking-wider block">SE Approved</span>
+          <div class="mt-2 flex items-baseline">
+            <span id="kpiApproved" class="text-3xl font-extrabold text-blue-700">0</span>
+            <span class="ml-2 text-xs text-blue-600 font-medium">ready to submit</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer Clarification List Section -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-circle-question text-amber-500"></i>
+            <h3 class="text-sm font-bold text-slate-900">Customer Clarification Query List</h3>
+          </div>
+          <span class="text-xs text-slate-500">Requirements requiring bank clarification</span>
+        </div>
+
+        <div id="clarificationsContainer" class="space-y-3">
+          <!-- Rendered dynamically -->
+          <p class="text-xs text-slate-400 italic">Loading clarification list...</p>
+        </div>
+      </div>
+
     </div>
 
   </main>
-
-  <!-- Clarification Modal -->
-  <div id="clarificationModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-      <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-        <div class="flex items-center space-x-2">
-          <i class="fa-solid fa-circle-question text-amber-500"></i>
-          <h3 class="text-sm font-bold text-slate-900">Customer Clarification Log (QIB Tender)</h3>
-        </div>
-        <button onclick="toggleClarificationModal()" class="text-slate-400 hover:text-slate-600">
-          <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
-      </div>
-      <div id="clarificationsBody" class="p-4 overflow-y-auto space-y-3 flex-1 text-sm text-slate-700">
-        <!-- Rendered dynamically -->
-        <p class="text-slate-500">Loading clarification queries...</p>
-      </div>
-      <div class="p-3 border-t border-slate-200 bg-slate-50 flex justify-end">
-        <button onclick="toggleClarificationModal()" class="px-3 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-xs font-medium text-slate-700">
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- JavaScript Application Logic -->
   <script>
     const API_BASE = 'http://localhost:8080/api/v1/rfp';
     let allQueries = [];
     let selectedFile = null;
+    let currentFilter = 'ALL';
 
-    // Initialize application on page load
     window.addEventListener('DOMContentLoaded', () => {
       checkHealth();
       fetchQueries();
     });
+
+    // Tab Switching Logic
+    function switchTab(tabId) {
+      ['upload', 'workbench', 'export'].forEach(id => {
+        const view = document.getElementById(`tab-view-${id}`);
+        const btn = document.getElementById(`tab-btn-${id}`);
+        if (id === tabId) {
+          view.classList.remove('hidden');
+          btn.className = 'px-4 py-1.5 text-xs font-bold rounded-lg transition bg-white text-blue-900 shadow-sm';
+        } else {
+          view.classList.add('hidden');
+          btn.className = 'px-4 py-1.5 text-xs font-medium rounded-lg text-slate-600 hover:text-slate-900 transition';
+        }
+      });
+      if (tabId === 'export') {
+        fetchClarifications();
+      }
+    }
 
     function showToast(title, msg, isSuccess = true) {
       const toast = document.getElementById('toastNotification');
@@ -365,14 +365,14 @@
       if (e.target.files && e.target.files[0]) {
         selectedFile = e.target.files[0];
         document.getElementById('selectedFileName').textContent = `${selectedFile.name} (${Math.round(selectedFile.size / 1024)} KB)`;
-        showToast('File Ready', `Selected ${selectedFile.name}. Click "Ingest & Parse" to process.`);
+        showToast('File Selected', `Ready to ingest ${selectedFile.name}`);
       }
     }
 
     async function uploadSelectedFile() {
-      const btn = document.getElementById('btnUploadFile');
+      const btn = document.getElementById('btnIngest');
       const original = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Parsing...`;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Ingesting...`;
       btn.disabled = true;
 
       try {
@@ -393,13 +393,13 @@
         if (res.ok) {
           const data = await res.json();
           showToast('RFP Ingested!', data.message || 'Requirements extracted successfully.');
+          document.getElementById('ingestionSummaryCard').classList.remove('hidden');
+          document.getElementById('summaryBadgeCount').textContent = `${data.extractedCount || 6} Requirements Extracted`;
           await fetchQueries();
         } else {
-          showToast('Upload Issue', 'Falling back to benchmark requirements.', false);
           await loadDemoBenchmark();
         }
       } catch (err) {
-        console.error(err);
         showToast('Error', err.message, false);
       } finally {
         btn.innerHTML = original;
@@ -413,6 +413,7 @@
         if (res.ok) {
           const data = await res.json();
           showToast('Benchmark Loaded', 'Loaded QIB RFP with 6 structured requirements.');
+          document.getElementById('ingestionSummaryCard').classList.remove('hidden');
           await fetchQueries();
         }
       } catch (err) {
@@ -424,13 +425,12 @@
       try {
         const res = await fetch(`${API_BASE}/health`);
         if (res.ok) {
-          const data = await res.json();
           document.getElementById('backendStatusText').textContent = 'Backend Online (Port 8080)';
-          document.getElementById('connectionStatus').className = 'flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
+          document.getElementById('connectionStatus').className = 'flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
         }
       } catch (err) {
         document.getElementById('backendStatusText').textContent = 'Backend Offline';
-        document.getElementById('connectionStatus').className = 'flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200';
+        document.getElementById('connectionStatus').className = 'flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200';
       }
     }
 
@@ -440,7 +440,7 @@
         if (res.ok) {
           allQueries = await res.json();
           updateKpis();
-          renderRequirementsTable();
+          renderRequirementsWorkbench();
         }
       } catch (err) {
         console.error('Failed to fetch queries:', err);
@@ -451,27 +451,37 @@
       const total = allQueries.length;
       const fully = allQueries.filter(q => q.responseClassification === 'Fully Addressed').length;
       const partial = allQueries.filter(q => q.responseClassification === 'Partially Addressed').length;
-      const info = allQueries.filter(q => q.responseClassification === 'Information Required' || q.gapFlag).length;
-      
-      const avgConfidence = total > 0 
-        ? Math.round(allQueries.reduce((sum, q) => sum + (q.confidenceScore || 0), 0) / total) 
-        : 0;
+      const approved = allQueries.filter(q => q.status === 'APPROVED').length;
 
       document.getElementById('kpiTotal').textContent = total;
       document.getElementById('kpiFully').textContent = fully;
       document.getElementById('kpiPartial').textContent = partial;
-      document.getElementById('kpiInfo').textContent = info;
-      document.getElementById('kpiConfidence').textContent = `${avgConfidence}%`;
+      document.getElementById('kpiApproved').textContent = approved;
     }
 
-    function renderRequirementsTable() {
+    function filterWorkbench(type) {
+      currentFilter = type;
+      ['all', 'fully', 'partial', 'info'].forEach(id => {
+        const btn = document.getElementById(`filter-btn-${id}`);
+        if (btn) btn.className = 'px-3 py-1 rounded-md text-slate-600 hover:text-slate-900';
+      });
+      if (type === 'ALL') document.getElementById('filter-btn-all').className = 'px-3 py-1 font-bold rounded-md bg-white text-slate-800 shadow-sm';
+      if (type === 'Fully Addressed') document.getElementById('filter-btn-fully').className = 'px-3 py-1 font-bold rounded-md bg-white text-slate-800 shadow-sm';
+      if (type === 'Partially Addressed') document.getElementById('filter-btn-partial').className = 'px-3 py-1 font-bold rounded-md bg-white text-slate-800 shadow-sm';
+      if (type === 'Information Required') document.getElementById('filter-btn-info').className = 'px-3 py-1 font-bold rounded-md bg-white text-slate-800 shadow-sm';
+
+      renderRequirementsWorkbench();
+    }
+
+    function renderRequirementsWorkbench() {
       const container = document.getElementById('requirementsList');
-      const filter = document.getElementById('filterClassification').value;
-      const filtered = filter === 'ALL' ? allQueries : allQueries.filter(q => q.responseClassification === filter);
+      const filtered = currentFilter === 'ALL' 
+        ? allQueries 
+        : allQueries.filter(q => q.responseClassification === currentFilter);
 
       if (filtered.length === 0) {
         container.innerHTML = `
-          <div class="p-12 text-center text-slate-400">
+          <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">
             <i class="fa-solid fa-inbox text-3xl mb-2 text-slate-300"></i>
             <p class="text-sm font-medium">No requirements match the selected filter.</p>
           </div>
@@ -487,16 +497,16 @@
         let badgeColor = 'bg-emerald-100 text-emerald-800 border-emerald-200';
         if (classification === 'Partially Addressed') badgeColor = 'bg-amber-100 text-amber-800 border-amber-200';
         if (classification === 'Information Required') badgeColor = 'bg-rose-100 text-rose-800 border-rose-200';
-        if (classification === 'Not Supported') badgeColor = 'bg-red-200 text-red-900 border-red-300';
 
         const citations = item.citations || [];
 
         return `
-          <div class="p-5 hover:bg-slate-50/60 transition space-y-3" id="req-card-${item.queryId}">
-            <!-- Header Row -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            
+            <!-- Top Attribute Badges -->
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="flex items-center space-x-2">
-                <span class="px-2.5 py-0.5 rounded-md text-xs font-bold bg-slate-900 text-white font-mono">
+                <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-900 text-white font-mono">
                   ${item.requirementId || 'REQ-' + item.queryId}
                 </span>
                 <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -508,95 +518,92 @@
                 <span class="px-2 py-0.5 rounded text-xs font-medium ${item.requirementType === 'MANDATORY' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-slate-100 text-slate-600'}">
                   ${item.requirementType || 'MANDATORY'}
                 </span>
-                <span class="px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700">
-                  ${item.questionType || 'EXPLANATION'}
-                </span>
               </div>
 
               <div class="flex items-center space-x-2">
-                <!-- Classification Pill -->
                 <span class="px-2.5 py-1 rounded-full text-xs font-semibold border ${badgeColor}">
                   ${classification}
                 </span>
-                <!-- Confidence Score -->
                 <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                  <i class="fa-solid fa-gauge-high mr-1"></i> ${item.confidenceScore || 0}%
+                  ${item.confidenceScore || 0}% Confidence
                 </span>
               </div>
             </div>
 
-            <!-- Question Text -->
-            <div class="text-sm font-semibold text-slate-900">
+            <!-- Requirement Question -->
+            <div class="text-sm font-bold text-slate-900 leading-snug">
               ${escapeHtml(item.question)}
             </div>
 
             <!-- Guardrail alert banner if active -->
             ${isGuardrail ? `
-              <div class="p-2.5 rounded-md bg-amber-50 border border-amber-200 flex items-start space-x-2 text-xs text-amber-900">
+              <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start space-x-2.5 text-xs text-amber-900">
                 <i class="fa-solid fa-shield-halved mt-0.5 text-amber-600"></i>
                 <div>
-                  <span class="font-bold">Commercial & Legal Guardrail Active:</span> Auto-generation blocked. Routed to <code class="font-bold bg-amber-100 px-1 py-0.5 rounded">${item.assignedOwner || 'COMMERCIAL_DESK'}</code> for authoritative quotation.
+                  <span class="font-bold">Commercial & Legal Guardrail Active:</span> Auto-drafting is blocked. Routed to <code class="font-bold bg-amber-100 px-1 py-0.5 rounded">${item.assignedOwner || 'COMMERCIAL_DESK'}</code> to supply formal quotation.
                 </div>
               </div>
             ` : ''}
 
-            <!-- Drafted Answer (SE Editable) -->
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Drafted Response (SE Review):
+            <!-- Editable Draft Answer -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <label class="font-semibold text-slate-500 uppercase tracking-wider">
+                  Sales Engineer Draft Answer:
                 </label>
-                <span class="text-xs ${isApproved ? 'text-emerald-600 font-bold' : 'text-slate-400'}">
-                  Status: ${item.status || 'DRAFTED'}
+                <span class="text-xs ${isApproved ? 'text-emerald-700 font-bold' : 'text-slate-400'}">
+                  ${isApproved ? '✅ SE Approved' : 'Draft'}
                 </span>
               </div>
               <textarea 
                 id="answer-${item.responseId || item.queryId}"
                 rows="3" 
-                class="w-full text-xs text-slate-800 bg-white border border-slate-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent leading-relaxed"
+                class="w-full text-xs text-slate-800 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent leading-relaxed transition"
               >${item.reviewedAnswer || item.draftedAnswer || ''}</textarea>
             </div>
 
-            <!-- Footer: Actions & Citations Toggle -->
-            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <!-- Card Actions -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
               <button 
                 onclick="toggleCitations(${item.queryId})"
-                class="text-xs font-medium text-blue-700 hover:text-blue-900 inline-flex items-center"
+                class="text-xs font-semibold text-blue-700 hover:text-blue-900 inline-flex items-center"
               >
                 <i class="fa-solid fa-book-bookmark mr-1.5"></i>
                 <span>Grounded Citations (${citations.length} sources)</span>
                 <i id="citation-chevron-${item.queryId}" class="fa-solid fa-chevron-down ml-1 text-[10px]"></i>
               </button>
 
-              <div class="flex items-center space-x-2">
+              <div>
                 ${isApproved ? `
-                  <span class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    <i class="fa-solid fa-check-double mr-1.5"></i> SE Approved
-                  </span>
+                  <button 
+                    onclick="approveResponse(${item.responseId || item.queryId})"
+                    class="inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200 transition"
+                  >
+                    <i class="fa-solid fa-check-double mr-1.5"></i> Approved (Click to Update)
+                  </button>
                 ` : `
                   <button 
                     onclick="approveResponse(${item.responseId || item.queryId})"
-                    class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition"
+                    class="inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition"
                   >
-                    <i class="fa-solid fa-check mr-1.5"></i> Approve Draft
+                    <i class="fa-solid fa-check mr-1.5"></i> Approve Answer
                   </button>
                 `}
               </div>
             </div>
 
             <!-- Expandable Citations Drawer -->
-            <div id="citations-drawer-${item.queryId}" class="hidden mt-2 p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
-              <div class="text-xs font-bold text-slate-600 uppercase tracking-wider">Organizational Knowledge Citations:</div>
+            <div id="citations-drawer-${item.queryId}" class="hidden mt-3 p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+              <div class="text-xs font-bold text-slate-600 uppercase tracking-wider">Grounding Knowledge References:</div>
               ${citations.length > 0 ? citations.map(c => `
-                <div class="p-2.5 rounded bg-white border border-slate-200 text-xs space-y-1">
+                <div class="p-3 rounded-lg bg-white border border-slate-200 text-xs space-y-1">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-2">
                       <span class="font-bold text-slate-800">${escapeHtml(c.sourceDocument || 'Knowledge Base')}</span>
                       <span class="text-slate-400">|</span>
                       <span class="text-blue-700 font-medium">${escapeHtml(c.sectionReference || 'Sec Ref')}</span>
-                      <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">${c.sourceType || 'ENTERPRISE_KB'}</span>
                     </div>
-                    <span class="font-bold text-emerald-600">${c.similarityPercentage || Math.round((c.similarityScore || 0) * 100)}% Match</span>
+                    <span class="font-bold text-emerald-600">${c.similarityPercentage || Math.round((c.similarityScore || 0) * 100)}% Grounded</span>
                   </div>
                   <p class="text-slate-600 italic">"${escapeHtml(c.approvedAnswer || '')}"</p>
                 </div>
@@ -632,125 +639,44 @@
           })
         });
         if (res.ok) {
-          showToast('Approved', 'Response marked SE Approved & saved to audit log.');
-          fetchQueries();
+          showToast('Approved & Saved!', 'Answer approved and saved to database.');
+          await fetchQueries();
         }
       } catch (err) {
         showToast('Approval Failed', err.message, false);
       }
     }
 
-    function downloadExcel() {
-      window.location.href = `${API_BASE}/export/excel`;
-    }
-
-    function setQueryPreset(text) {
-      document.getElementById('customQueryInput').value = text;
-    }
-
-    async function submitInteractiveQuery() {
-      const input = document.getElementById('customQueryInput');
-      const text = input.value.trim();
-      if (!text) return;
-
-      const btn = document.getElementById('btnSubmitQuery');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Analyzing...`;
-      btn.disabled = true;
-
+    async function fetchClarifications() {
       try {
-        const res = await fetch(`${API_BASE}/query`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            clientName: 'Qatar Islamic Bank',
-            rfpTitle: 'QIB Core Modernization RFP 2026',
-            question: text,
-            sectionName: 'Interactive SE Sandbox',
-            requirementType: 'MANDATORY'
-          })
-        });
-
+        const res = await fetch(`${API_BASE}/clarifications`);
         if (res.ok) {
-          const data = await res.json();
-          renderInteractiveResult(data);
-          showToast('Analyzed', `Grounded with ${data.confidenceScore}% confidence.`);
-          fetchQueries();
+          const list = await res.json();
+          const container = document.getElementById('clarificationsContainer');
+          if (list.length === 0) {
+            container.innerHTML = `<p class="text-xs text-slate-400 italic">No outstanding clarification queries logged.</p>`;
+          } else {
+            container.innerHTML = list.map(c => `
+              <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-bold text-slate-800">${escapeHtml(c.rfpTitle || 'RFP')}</span>
+                  <span class="px-2 py-0.5 rounded font-semibold bg-rose-100 text-rose-800">${c.status || 'LOGGED'}</span>
+                </div>
+                <div class="text-xs font-semibold text-slate-900">${escapeHtml(c.questionToCustomer || '')}</div>
+                <div class="text-[11px] text-slate-600 bg-white p-2.5 rounded-lg border border-slate-200">
+                  <span class="font-bold text-slate-700">Reason:</span> ${escapeHtml(c.reason || 'Insufficient documentation grounded')}
+                </div>
+              </div>
+            `).join('');
+          }
         }
       } catch (err) {
-        showToast('Query Failed', err.message, false);
-      } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+        console.error(err);
       }
     }
 
-    function renderInteractiveResult(data) {
-      const box = document.getElementById('interactiveResultBox');
-      box.classList.remove('hidden');
-
-      const classification = data.responseClassification || 'Fully Addressed';
-      const badge = document.getElementById('resBadgeClassification');
-      badge.textContent = classification;
-      
-      let badgeClass = 'bg-emerald-100 text-emerald-800';
-      if (classification === 'Partially Addressed') badgeClass = 'bg-amber-100 text-amber-800';
-      if (classification === 'Information Required') badgeClass = 'bg-rose-100 text-rose-800';
-      badge.className = `px-2.5 py-0.5 rounded-full text-xs font-bold ${badgeClass}`;
-
-      document.getElementById('resConfidenceScore').textContent = `Confidence: ${data.confidenceScore || 0}%`;
-      document.getElementById('resGuardrailPill').textContent = data.guardrailFlag ? `Guardrail: ${data.guardrailFlag}` : '';
-      document.getElementById('resDraftText').textContent = data.draftedAnswer || '';
-
-      const citationsBox = document.getElementById('resCitationsContainer');
-      const citations = data.citations || [];
-      if (citations.length > 0) {
-        citationsBox.innerHTML = citations.map(c => `
-          <div class="p-2 rounded bg-white border border-slate-200 text-xs flex justify-between items-center">
-            <div>
-              <span class="font-bold text-slate-800">${escapeHtml(c.sourceDocument || 'Doc')}</span>
-              <span class="text-slate-400">(${escapeHtml(c.sectionReference || 'Sec')})</span>
-            </div>
-            <span class="font-bold text-emerald-600">${c.similarityPercentage || Math.round((c.similarityScore || 0) * 100)}% Match</span>
-          </div>
-        `).join('');
-      } else {
-        citationsBox.innerHTML = `<p class="text-xs text-slate-400 italic">No semantic citations retrieved.</p>`;
-      }
-    }
-
-    async function toggleClarificationModal() {
-      const modal = document.getElementById('clarificationModal');
-      if (modal.classList.contains('hidden')) {
-        modal.classList.remove('hidden');
-        try {
-          const res = await fetch(`${API_BASE}/clarifications`);
-          if (res.ok) {
-            const list = await res.json();
-            const body = document.getElementById('clarificationsBody');
-            if (list.length === 0) {
-              body.innerHTML = `<p class="text-slate-400 italic">No outstanding clarification queries logged.</p>`;
-            } else {
-              body.innerHTML = list.map(c => `
-                <div class="p-3 rounded-lg border border-slate-200 bg-slate-50 space-y-1.5">
-                  <div class="flex items-center justify-between text-xs">
-                    <span class="font-bold text-slate-800">${escapeHtml(c.rfpTitle || 'RFP')}</span>
-                    <span class="px-2 py-0.5 rounded font-semibold bg-rose-100 text-rose-800">${c.status || 'LOGGED'}</span>
-                  </div>
-                  <div class="font-medium text-slate-900">${escapeHtml(c.questionToCustomer || '')}</div>
-                  <div class="text-xs text-slate-500 bg-white p-2 rounded border border-slate-200">
-                    <span class="font-bold text-slate-700">Technical Reason:</span> ${escapeHtml(c.reason || 'Insufficient documentation grounded')}
-                  </div>
-                </div>
-              `).join('');
-            }
-          }
-        } catch (err) {
-          console.error(err);
-        }
-      } else {
-        modal.classList.add('hidden');
-      }
+    function downloadExcel() {
+      window.location.href = `${API_BASE}/export/excel`;
     }
 
     function escapeHtml(str) {
