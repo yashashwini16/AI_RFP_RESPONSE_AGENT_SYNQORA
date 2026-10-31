@@ -4,7 +4,7 @@
 
 ---
 
-## 🌟 Executive Overview & Purpose
+## Executive Overview & Purpose
 
 The **RFP Agent** is an enterprise copilot built specifically for **Sales Engineers (SEs)** responding to complex **Islamic Banking and Lending RFPs**. 
 
@@ -15,17 +15,17 @@ Instead of manually digging through 200-page proposal archives and product manua
    - 📄 **Past Scopes of Work (SOWs)** (Redacted Tier-1 banking transformation deliverables)
    - 📑 **Past RFP Responses** (Audited and certified historical proposal answers)
 3. **Enforces Enterprise Guardrails**:
-   - 🛡️ **SE in Control**: Every answer remains a draft until explicitly reviewed and approved by the Sales Engineer.
-   - ⚖️ **Commercial & Legal Triage**: Pricing, license fees, SLA liquidated damages, and contractual commitments are **never** auto-generated; they are flagged for the Commercial Desk or Legal Counsel.
-   - 🔒 **Confidentiality / Client Redaction**: Past customer bank names are sanitized (`[REDACTED_TIER1_ISLAMIC_BANK]`).
-   - 🔍 **Source Quality Warning**: Flags when knowledge originates from outdated product versions (e.g. iMAL v12/v13 vs current v15.0).
+   -  **SE in Control**: Every answer remains a draft until explicitly reviewed and approved by the Sales Engineer.
+   -  **Commercial & Legal Triage**: Pricing, license fees, SLA liquidated damages, and contractual commitments are **never** auto-generated; they are flagged for the Commercial Desk or Legal Counsel.
+   -  **Confidentiality / Client Redaction**: Past customer bank names are sanitized (`[REDACTED_TIER1_ISLAMIC_BANK]`).
+   -  **Source Quality Warning**: Flags when knowledge originates from outdated product versions (e.g. iMAL v12/v13 vs current v15.0).
 4. **Clarification Query Compilation**: Generates a consolidated, deduplicated list of questions to send to the client with technical justification instead of inventing assumptions.
 5. **Generates Full Compliance Matrix**: Compliant (`C`), Partially Compliant (`PC`), Non-Compliant (`NC`), Clarification Needed (`CL`).
 6. **Conversational Collaboration & Memory**: SE instructs the agent in chat ("Rewrite to emphasize AAOIFI compliance", "Shorten answer to 200 words", "Approve answer").
 
 ---
 
-## 🏗️ Architecture & Tech Stack
+##  Architecture & Tech Stack
 
 ```mermaid
 flowchart TD
@@ -65,21 +65,3 @@ flowchart TD
 | `GET` | `/api/v1/rfp/export/all` | Export formatted proposal report adhering to RFP rules |
 
 ---
-
-## 🎬 End-to-End Demo Script for Judges
-
-1. **Upload & Ingest**:
-   - Click **"⚡ Ingest Benchmark RFP"** (or call `POST /api/v1/rfp/load-sample-rfp`).
-   - The agent ingests the Qatar Islamic Bank Core Banking & Lending RFP across 5 sections.
-2. **Grounded Shariah Answering**:
-   - Inspect **Section 1 (Murabaha)**: Confidence **98% (Green)**, cites `iMAL_Islamic_Financing_Product_Specification_v15.pdf`, explains Shariah sequence (Waad, Ijab wa Qabul).
-   - Inspect **Section 2 (Ijara)**: Grounded in `iMAL_Ijara_Product_Architecture_Guide.pdf`, cites AAOIFI Standard No. 9 and Takaful apportionment.
-3. **Commercial Guardrail in Action**:
-   - Inspect **Section 4 (Pricing)**: Notice the red/amber alert! The agent **refused to invent pricing** and routed it to `COMMERCIAL_DESK` for tailored review.
-4. **SE Collaborative Chat**:
-   - Switch to the **Chat Tab**. Send: *"Rewrite question 1 to emphasize AAOIFI compliance"*.
-   - Watch the agent update the draft dynamically while preserving grounding!
-5. **Customer Clarification Queries List**:
-   - Switch to the **Clarifications Tab**. View formal queries generated for missing technical parameters.
-6. **Compliance Matrix & Final Export**:
-   - View the Compliance Matrix table, then click **"Export Proposal"** to download the complete, submission-ready document.
